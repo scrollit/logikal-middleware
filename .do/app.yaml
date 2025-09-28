@@ -1,7 +1,7 @@
 name: logikal-middleware
 services:
 - name: web
-  source_dir: /
+  source_dir: /app
   github:
     repo: HendrickxJasper/logikal-middleware
     branch: main
