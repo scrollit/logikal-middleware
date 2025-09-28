@@ -41,7 +41,7 @@
 
 ### 2. Configure App Settings
 - **App Name**: `logikal-middleware`
-- **Dockerfile Path**: `Dockerfile.production`
+- **Dockerfile Path**: `Dockerfile`
 - **HTTP Port**: `8080`
 - **Instance Size**: `Basic XXS` (1 vCPU, 512MB RAM)
 - **Instance Count**: `1`
@@ -121,9 +121,10 @@ To scale the application:
 
 ### Common Issues
 1. **Build Failures**: Check Dockerfile and requirements.txt
-2. **Database Connection**: Verify DATABASE_URL environment variable
-3. **Authentication**: Check JWT_SECRET_KEY and admin credentials
-4. **Health Check**: Ensure `/api/v1/health` endpoint is working
+2. **Multiple Apps Detected**: Ensure only one Dockerfile exists (development Dockerfile renamed to Dockerfile.dev)
+3. **Database Connection**: Verify DATABASE_URL environment variable
+4. **Authentication**: Check JWT_SECRET_KEY and admin credentials
+5. **Health Check**: Ensure `/api/v1/health` endpoint is working
 
 ### Logs
 - View application logs in DigitalOcean dashboard
