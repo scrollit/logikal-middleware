@@ -1,0 +1,80 @@
+name: logikal-middleware
+services:
+- name: web
+  source_dir: /
+  github:
+    repo: HendrickxJasper/logikal-middleware
+    branch: main
+  run_command: uvicorn main:app --host 0.0.0.0 --port 8080 --workers 4
+  environment_slug: python
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 8080
+  dockerfile_path: Dockerfile.production
+  envs:
+  - key: ENVIRONMENT
+    value: production
+  - key: DEBUG
+    value: "false"
+  - key: SECRET_KEY
+    value: ${SECRET_KEY}
+    type: SECRET
+  - key: JWT_SECRET_KEY
+    value: ${JWT_SECRET_KEY}
+    type: SECRET
+  - key: DATABASE_URL
+    value: ${DATABASE_URL}
+    type: SECRET
+  - key: REDIS_URL
+    value: ${REDIS_URL}
+    type: SECRET
+  - key: LOGIKAL_API_BASE_URL
+    value: "http://128.199.57.77/MbioeService.svc/api/v3/"
+  - key: LOGIKAL_AUTH_USERNAME
+    value: ${LOGIKAL_AUTH_USERNAME}
+    type: SECRET
+  - key: LOGIKAL_AUTH_PASSWORD
+    value: ${LOGIKAL_AUTH_PASSWORD}
+    type: SECRET
+  - key: ADMIN_USERNAME
+    value: ${ADMIN_USERNAME}
+    type: SECRET
+  - key: ADMIN_PASSWORD
+    value: ${ADMIN_PASSWORD}
+    type: SECRET
+  - key: ADMIN_SESSION_EXPIRE_HOURS
+    value: "8"
+  - key: LOG_LEVEL
+    value: "INFO"
+  - key: LOG_FORMAT
+    value: "json"
+  - key: PROMETHEUS_ENABLED
+    value: "true"
+  - key: RATE_LIMIT_PER_MINUTE
+    value: "1000"
+  - key: RATE_LIMIT_PER_HOUR
+    value: "10000"
+  health_check:
+    http_path: /api/v1/health
+  routes:
+  - path: /
+  - path: /ui
+  - path: /api
+  - path: /docs
+  - path: /redoc
+  - path: /metrics
+
+databases:
+- name: logikal-db
+  engine: PG
+  version: "15"
+  size: db-s-dev-database
+  num_nodes: 1
+
+# Optional: Redis for Celery (if needed)
+# databases:
+# - name: logikal-redis
+#   engine: REDIS
+#   version: "7"
+#   size: db-s-dev-database
+#   num_nodes: 1
