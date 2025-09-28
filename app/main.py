@@ -7,7 +7,7 @@ from core.logging import setup_logging, LoggingMiddleware
 from core.security_production import setup_security_middleware
 from monitoring.prometheus import setup_prometheus_metrics
 from monitoring.health import router as health_router
-from routers import auth_router, directories_router, projects_router, elevations_router, phases_router, sync_router, client_auth, odoo, sync_status, scheduler, advanced_sync
+from routers import auth_router, directories_router, projects_router, elevations_router, phases_router, sync_router, client_auth, odoo, sync_status, scheduler, advanced_sync, admin_auth
 import logging
 
 # Get production settings
@@ -45,6 +45,7 @@ app.include_router(odoo.router, prefix=settings.API_V1_STR)
 app.include_router(sync_status.router, prefix=settings.API_V1_STR)
 app.include_router(scheduler.router, prefix=settings.API_V1_STR)
 app.include_router(advanced_sync.router, prefix=settings.API_V1_STR)
+app.include_router(admin_auth.router, prefix=settings.API_V1_STR)
 app.include_router(health_router, prefix=settings.API_V1_STR)
 
 # Setup production middleware
@@ -68,7 +69,7 @@ async def health_check():
 
 @app.get("/ui", response_class=HTMLResponse)
 async def get_ui():
-    """Enhanced Admin Dashboard with Phase 1 (Dashboard) and Phase 2 (Advanced Sync Management)"""
+    """Enhanced Admin Dashboard with Phase 1 (Dashboard) and Phase 2 (Advanced Sync Management) - Now with Authentication"""
     html_content = """
     <!DOCTYPE html>
     <html>
@@ -93,6 +94,115 @@ async def get_ui():
                 box-shadow: 0 0 30px rgba(0,0,0,0.1);
             }
             
+            /* Login Form Styles */
+            .login-container {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            }
+            
+            .login-form {
+                background: white;
+                padding: 40px;
+                border-radius: 12px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+                width: 100%;
+                max-width: 400px;
+            }
+            
+            .login-form h2 {
+                text-align: center;
+                margin-bottom: 30px;
+                color: #2c3e50;
+                font-weight: 300;
+            }
+            
+            .form-group {
+                margin-bottom: 20px;
+            }
+            
+            .form-group label {
+                display: block;
+                margin-bottom: 8px;
+                color: #555;
+                font-weight: 500;
+            }
+            
+            .form-group input {
+                width: 100%;
+                padding: 12px;
+                border: 2px solid #e9ecef;
+                border-radius: 8px;
+                font-size: 16px;
+                transition: border-color 0.3s ease;
+            }
+            
+            .form-group input:focus {
+                outline: none;
+                border-color: #007bff;
+            }
+            
+            .login-btn {
+                width: 100%;
+                padding: 12px;
+                background-color: #007bff;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: background-color 0.3s ease;
+            }
+            
+            .login-btn:hover {
+                background-color: #0056b3;
+            }
+            
+            .login-btn:disabled {
+                background-color: #6c757d;
+                cursor: not-allowed;
+            }
+            
+            .error-message {
+                color: #dc3545;
+                text-align: center;
+                margin-top: 15px;
+                padding: 10px;
+                background-color: #f8d7da;
+                border: 1px solid #f5c6cb;
+                border-radius: 4px;
+                display: none;
+            }
+            
+            .admin-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+            }
+            
+            .admin-info {
+                color: #6c757d;
+                font-size: 14px;
+            }
+            
+            .logout-btn {
+                padding: 8px 16px;
+                background-color: #dc3545;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 14px;
+            }
+            
+            .logout-btn:hover {
+                background-color: #c82333;
+            }
+            
             .header {
                 background-color: #2c3e50;
                 color: white;
@@ -102,8 +212,39 @@ async def get_ui():
                 align-items: center;
             }
             
-            .header h1 { font-size: 24px; font-weight: 300; }
-            .header .version { opacity: 0.8; font-size: 14px; }
+            .header-left {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .header-right {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 5px;
+            }
+            
+            .header h1 { font-size: 24px; font-weight: 300; margin: 0; }
+            .header .version { opacity: 0.8; font-size: 14px; margin: 0; }
+            
+            .admin-info {
+                font-size: 14px;
+                opacity: 0.9;
+            }
+            
+            .logout-link a {
+                color: #ffffff;
+                text-decoration: none;
+                font-size: 14px;
+                opacity: 0.8;
+                transition: opacity 0.3s ease;
+            }
+            
+            .logout-link a:hover {
+                opacity: 1;
+                text-decoration: underline;
+            }
             
             .nav { 
                 background-color: #343a40; 
@@ -567,10 +708,40 @@ async def get_ui():
         </style>
     </head>
     <body>
-        <div class="container">
+        <!-- Login Form -->
+        <div id="login-container" class="login-container">
+            <div class="login-form">
+                <h2>Admin Login</h2>
+                <form id="login-form" onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="button" class="login-btn" id="login-btn" onclick="handleLogin()">Login</button>
+                    <div id="error-message" class="error-message"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Dashboard (hidden initially) -->
+        <div id="main-container" class="container" style="display: none;">
             <div class="header">
-                <h1>Logikal Middleware - Admin Dashboard</h1>
-                <div class="version">Version 1.0.0 | Environment: Production</div>
+                <div class="header-left">
+                    <h1>Logikal Middleware - Admin Dashboard</h1>
+                    <div class="version">Version 1.0.0 | Environment: Production</div>
+                </div>
+                <div class="header-right">
+                    <div class="admin-info">
+                        Welcome, <span id="admin-username">Admin</span>
+                    </div>
+                    <div class="logout-link">
+                        <a href="#" onclick="logout(); return false;">Logout</a>
+                    </div>
+                </div>
             </div>
             
             <div class="nav">
@@ -863,16 +1034,16 @@ async def get_ui():
             <div id="connection" class="page">
                 <h2>Connection Test</h2>
                 <div class="form-group">
-                    <label for="base_url">Base URL:</label>
-                    <input type="text" id="base_url" value="https://logikal.api" placeholder="https://logikal.api">
+                    <label for="connection_base_url">Base URL:</label>
+                    <input type="text" id="connection_base_url" value="https://logikal.api" placeholder="https://logikal.api">
                 </div>
                 <div class="form-group">
-                    <label for="username">Username:</label>
-                    <input type="text" id="username" placeholder="Your Logikal username">
+                    <label for="connection_username">Username:</label>
+                    <input type="text" id="connection_username" placeholder="Your Logikal username">
                 </div>
                 <div class="form-group">
-                    <label for="password">Password:</label>
-                    <input type="password" id="password" placeholder="Your Logikal password">
+                    <label for="connection_password">Password:</label>
+                    <input type="password" id="connection_password" placeholder="Your Logikal password">
                 </div>
                 <div class="form-group">
                     <button onclick="testConnection()">Test Connection</button>
@@ -1054,15 +1225,15 @@ async def get_ui():
         </div>
         
         <script>
-            let authToken = null;
+            let logikalAuthToken = null;
             let currentDirectory = null;
             let currentProject = null;
             let currentPhase = null;
             
-            // Load saved connection details on page load
-            document.addEventListener('DOMContentLoaded', function() {
+            // Load saved connection details on page load (only for connection page)
+            function loadConnectionDetails() {
                 loadSavedConnectionDetails();
-            });
+            }
             
             function showPage(pageName) {
                 // Hide all pages
@@ -1087,9 +1258,9 @@ async def get_ui():
                 const savedUsername = localStorage.getItem('logikal_username');
                 const savedPassword = localStorage.getItem('logikal_password');
                 
-                if (savedBaseUrl) document.getElementById('base_url').value = savedBaseUrl;
-                if (savedUsername) document.getElementById('username').value = savedUsername;
-                if (savedPassword) document.getElementById('password').value = savedPassword;
+                if (savedBaseUrl) document.getElementById('connection_base_url').value = savedBaseUrl;
+                if (savedUsername) document.getElementById('connection_username').value = savedUsername;
+                if (savedPassword) document.getElementById('connection_password').value = savedPassword;
                 
                 // Show indicator if details were loaded
                 if (savedBaseUrl || savedUsername || savedPassword) {
@@ -1122,9 +1293,9 @@ async def get_ui():
             }
             
             async function resetNavigation() {
-                const baseUrl = document.getElementById('base_url').value;
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
+                const baseUrl = document.getElementById('connection_base_url').value;
+                const username = document.getElementById('connection_username').value;
+                const password = document.getElementById('connection_password').value;
                 
                 if (!baseUrl || !username || !password) {
                     alert('Please fill in all connection details first');
@@ -1132,20 +1303,28 @@ async def get_ui():
                 }
                 
                 try {
-                    const response = await fetch(`/api/v1/auth/reset-navigation?base_url=${encodeURIComponent(baseUrl)}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`, {
-                        method: 'POST'
+                    const response = await fetch('/api/v1/auth/reset-navigation', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            base_url: baseUrl,
+                            username: username,
+                            password: password
+                        })
                     });
                     const result = await response.json();
                     
                     if (response.ok) {
                         // Clear current state
-                        authToken = null;
+                        logikalAuthToken = null;
                         currentDirectory = null;
                         currentProject = null;
                         currentPhase = null;
                         
                         // Get new token from the response
-                        authToken = result.token || null;
+                        logikalAuthToken = result.token || null;
                         
                         alert('Navigation reset successfully! You can now navigate to any directory.');
                     } else {
@@ -1157,15 +1336,25 @@ async def get_ui():
             }
             
             async function testConnection() {
-                const baseUrl = document.getElementById('base_url').value;
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
+                const baseUrl = document.getElementById('connection_base_url').value;
+                const username = document.getElementById('connection_username').value;
+                const password = document.getElementById('connection_password').value;
                 
                 // Save connection details
                 saveConnectionDetails(baseUrl, username, password);
                 
                 try {
-                    const response = await fetch(`/api/v1/auth/test?base_url=${encodeURIComponent(baseUrl)}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`);
+                    const response = await fetch('/api/v1/auth/test', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            base_url: baseUrl,
+                            username: username,
+                            password: password
+                        })
+                    });
                     const result = await response.json();
                     
                     const resultDiv = document.getElementById('connection_result');
@@ -1179,9 +1368,9 @@ async def get_ui():
             }
             
             async function authenticate() {
-                const baseUrl = document.getElementById('base_url').value;
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
+                const baseUrl = document.getElementById('connection_base_url').value;
+                const username = document.getElementById('connection_username').value;
+                const password = document.getElementById('connection_password').value;
                 
                 // Save connection details
                 saveConnectionDetails(baseUrl, username, password);
@@ -1758,11 +1947,18 @@ async def get_ui():
                     return;
                 }
                 
-                const baseUrl = document.getElementById('base_url').value;
+                const baseUrl = document.getElementById('connection_base_url').value;
                 
                 try {
-                    const response = await fetch(`/api/v1/directories/${directoryId}/select?token=${encodeURIComponent(authToken)}&base_url=${encodeURIComponent(baseUrl)}`, {
-                        method: 'POST'
+                    const response = await fetch(`/api/v1/directories/${directoryId}/select`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({
+                            base_url: baseUrl
+                        })
                     });
                     const result = await response.json();
                     
@@ -1785,10 +1981,14 @@ async def get_ui():
                     return;
                 }
                 
-                const baseUrl = document.getElementById('base_url').value;
+                const baseUrl = document.getElementById('connection_base_url').value;
                 
                 try {
-                    const response = await fetch(`/api/v1/projects/?token=${encodeURIComponent(authToken)}&base_url=${encodeURIComponent(baseUrl)}`);
+                    const response = await fetch('/api/v1/projects/', {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
                     const result = await response.json();
                     
                     const resultDiv = document.getElementById('projects_result');
@@ -1850,11 +2050,14 @@ async def get_ui():
                     return;
                 }
                 
-                const baseUrl = document.getElementById('base_url').value;
+                const baseUrl = document.getElementById('connection_base_url').value;
                 
                 try {
-                    const response = await fetch(`/api/v1/projects/${projectId}/select?token=${encodeURIComponent(authToken)}&base_url=${encodeURIComponent(baseUrl)}`, {
-                        method: 'POST'
+                    const response = await fetch(`/api/v1/projects/${projectId}/select`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
                     });
                     const result = await response.json();
                     
@@ -1877,10 +2080,14 @@ async def get_ui():
                     return;
                 }
                 
-                const baseUrl = document.getElementById('base_url').value;
+                const baseUrl = document.getElementById('connection_base_url').value;
                 
                 try {
-                    const response = await fetch(`/api/v1/phases/?token=${encodeURIComponent(authToken)}&base_url=${encodeURIComponent(baseUrl)}`);
+                    const response = await fetch('/api/v1/phases/', {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
                     const result = await response.json();
                     
                     const resultDiv = document.getElementById('phases_result');
@@ -1942,11 +2149,14 @@ async def get_ui():
                     return;
                 }
                 
-                const baseUrl = document.getElementById('base_url').value;
+                const baseUrl = document.getElementById('connection_base_url').value;
                 
                 try {
-                    const response = await fetch(`/api/v1/phases/${phaseId}/select?token=${encodeURIComponent(authToken)}&base_url=${encodeURIComponent(baseUrl)}`, {
-                        method: 'POST'
+                    const response = await fetch(`/api/v1/phases/${phaseId}/select`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
                     });
                     const result = await response.json();
                     
@@ -1976,10 +2186,14 @@ async def get_ui():
                     return;
                 }
                 
-                const baseUrl = document.getElementById('base_url').value;
+                const baseUrl = document.getElementById('connection_base_url').value;
                 
                 try {
-                    const response = await fetch(`/api/v1/elevations/?token=${encodeURIComponent(authToken)}&base_url=${encodeURIComponent(baseUrl)}`);
+                    const response = await fetch('/api/v1/elevations/', {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
                     const result = await response.json();
                     
                     const resultDiv = document.getElementById('elevations_result');
@@ -2048,10 +2262,14 @@ async def get_ui():
                     return;
                 }
                 
-                const baseUrl = document.getElementById('base_url').value;
+                const baseUrl = document.getElementById('connection_base_url').value;
                 
                 try {
-                    const response = await fetch(`/api/v1/elevations/${elevationId}/thumbnail?token=${encodeURIComponent(authToken)}&base_url=${encodeURIComponent(baseUrl)}`);
+                    const response = await fetch(`/api/v1/elevations/${elevationId}/thumbnail`, {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`
+                        }
+                    });
                     
                     if (response.ok) {
                         const blob = await response.blob();
@@ -2250,7 +2468,7 @@ async def get_ui():
             
             // Sync Functions
             async function triggerFullSync() {
-                const baseUrl = document.getElementById('base_url').value;
+                const baseUrl = document.getElementById('connection_base_url').value;
                 const username = document.getElementById('username').value;
                 const password = document.getElementById('password').value;
                 
@@ -2304,7 +2522,7 @@ async def get_ui():
             }
             
             async function triggerIncrementalSync() {
-                const baseUrl = document.getElementById('base_url').value;
+                const baseUrl = document.getElementById('connection_base_url').value;
                 const username = document.getElementById('username').value;
                 const password = document.getElementById('password').value;
                 
@@ -2978,12 +3196,122 @@ async def get_ui():
                 }
             }
             
-            // Initialize dashboard on page load
-            document.addEventListener('DOMContentLoaded', function() {
+            // Authentication Functions
+            let adminAuthToken = null;
+            
+            // Check if user is already authenticated
+            function checkAuth() {
+                const token = localStorage.getItem('admin_token');
+                if (token) {
+                    // Verify token with server
+                    fetch('/api/v1/admin/verify', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            return response.json();
+                        }
+                        throw new Error('Invalid token');
+                    })
+                    .then(data => {
+                        adminAuthToken = token;
+                        showDashboard(data.username);
+                    })
+                    .catch(error => {
+                        localStorage.removeItem('admin_token');
+                        showLogin();
+                    });
+                } else {
+                    showLogin();
+                }
+            }
+            
+            // Show login form
+            function showLogin() {
+                document.getElementById('login-container').style.display = 'flex';
+                document.getElementById('main-container').style.display = 'none';
+            }
+            
+            // Show dashboard
+            function showDashboard(username) {
+                document.getElementById('login-container').style.display = 'none';
+                document.getElementById('main-container').style.display = 'block';
+                document.getElementById('admin-username').textContent = username;
+                
+                // Initialize dashboard
                 updateDashboardMetrics();
                 refreshAlerts();
                 refreshSyncHistory();
                 refreshSyncStatus();
+            }
+            
+            // Handle login form submission
+            async function handleLogin() {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const loginBtn = document.getElementById('login-btn');
+                const errorMessage = document.getElementById('error-message');
+                
+                // Disable button and show loading
+                loginBtn.disabled = true;
+                loginBtn.textContent = 'Logging in...';
+                errorMessage.style.display = 'none';
+                
+                try {
+                    const response = await fetch('/api/v1/admin/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            username: username,
+                            password: password
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        adminAuthToken = data.access_token;
+                        localStorage.setItem('admin_token', adminAuthToken);
+                        showDashboard(username);
+                    } else {
+                        const error = await response.json();
+                        errorMessage.textContent = error.detail || 'Login failed';
+                        errorMessage.style.display = 'block';
+                    }
+                } catch (error) {
+                    errorMessage.textContent = 'Network error. Please try again.';
+                    errorMessage.style.display = 'block';
+                } finally {
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Login';
+                }
+            }
+            
+            // Logout function
+            function logout() {
+                localStorage.removeItem('admin_token');
+                adminAuthToken = null;
+                showLogin();
+                
+                // Clear form
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                document.getElementById('error-message').style.display = 'none';
+            }
+            
+            // Initialize dashboard on page load
+            document.addEventListener('DOMContentLoaded', function() {
+                // Check authentication
+                checkAuth();
+                // Load connection details when connection page is shown
+                document.addEventListener('click', function(e) {
+                    if (e.target.textContent === 'Connection') {
+                        loadConnectionDetails();
+                    }
+                });
             });
         </script>
     </body>
