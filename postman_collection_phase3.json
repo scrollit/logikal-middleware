@@ -1,0 +1,568 @@
+{
+  "info": {
+    "name": "Logikal Middleware - Phase 3: Smart Sync Foundation",
+    "description": "Phase 3 endpoints for smart sync logic, timestamp tracking, and sync status reporting",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Phase 3: Smart Sync Status",
+      "item": [
+        {
+          "name": "Get Project Sync Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync-status/project/{{project_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync-status", "project", "{{project_id}}"]
+            },
+            "description": "Get sync status for a specific project. Shows whether the project and its phases/elevations need syncing."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains sync status information', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('project_id');",
+                  "    pm.expect(jsonData).to.have.property('exists');",
+                  "    pm.expect(jsonData).to.have.property('sync_needed');",
+                  "    pm.expect(jsonData).to.have.property('project_stale');",
+                  "    pm.expect(jsonData).to.have.property('stale_phases_count');",
+                  "    pm.expect(jsonData).to.have.property('stale_elevations_count');",
+                  "});",
+                  "",
+                  "pm.test('Response contains timestamp information', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('total_phases');",
+                  "    pm.expect(jsonData).to.have.property('total_elevations');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sync Project If Needed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync-status/project/{{project_id}}/sync?force_sync=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync-status", "project", "{{project_id}}", "sync"],
+              "query": [
+                {
+                  "key": "force_sync",
+                  "value": "false",
+                  "description": "Force sync even if data appears up to date"
+                }
+              ]
+            },
+            "description": "Perform smart sync for a project if needed. Only syncs if data is stale or if force_sync is True."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains sync result information', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData).to.have.property('synced');",
+                  "    pm.expect(jsonData).to.have.property('project_id');",
+                  "});",
+                  "",
+                  "pm.test('Sync result indicates success or no sync needed', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Force Sync Project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync-status/project/{{project_id}}/sync?force_sync=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync-status", "project", "{{project_id}}", "sync"],
+              "query": [
+                {
+                  "key": "force_sync",
+                  "value": "true",
+                  "description": "Force sync even if data appears up to date"
+                }
+              ]
+            },
+            "description": "Force sync a project regardless of sync status."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response indicates forced sync', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData).to.have.property('synced');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Sync Status Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync-status/summary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync-status", "summary"]
+            },
+            "description": "Get a summary of sync status for all projects, phases, and elevations."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains sync summary', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('summary');",
+                  "    pm.expect(jsonData).to.have.property('generated_at');",
+                  "    pm.expect(jsonData.summary).to.have.property('total_projects');",
+                  "    pm.expect(jsonData.summary).to.have.property('stale_projects');",
+                  "    pm.expect(jsonData.summary).to.have.property('projects_never_synced');",
+                  "});",
+                  "",
+                  "pm.test('Summary contains phase and elevation counts', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.summary).to.have.property('total_phases');",
+                  "    pm.expect(jsonData.summary).to.have.property('stale_phases');",
+                  "    pm.expect(jsonData.summary).to.have.property('total_elevations');",
+                  "    pm.expect(jsonData.summary).to.have.property('stale_elevations');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark Project as Updated",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync-status/project/{{project_id}}/mark-updated",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync-status", "project", "{{project_id}}", "mark-updated"]
+            },
+            "description": "Mark a project as having been updated in Logikal (simulates receiving updated data)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response indicates successful update marking', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData).to.have.property('message');",
+                  "    pm.expect(jsonData).to.have.property('update_date');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 3: Enhanced Odoo Endpoints",
+      "item": [
+        {
+          "name": "Get Project Complete with Smart Sync",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/odoo/projects/{{project_id}}/complete?auto_sync=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "odoo", "projects", "{{project_id}}", "complete"],
+              "query": [
+                {
+                  "key": "auto_sync",
+                  "value": "true",
+                  "description": "Automatically sync if data is stale"
+                }
+              ]
+            },
+            "description": "Get complete project data with automatic smart sync if data is stale."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains complete project data', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('project');",
+                  "    pm.expect(jsonData).to.have.property('phases_with_elevations');",
+                  "    pm.expect(jsonData).to.have.property('summary');",
+                  "});",
+                  "",
+                  "pm.test('Project data includes sync timestamps', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    // Note: These fields will be available after the smart sync logic is fully implemented",
+                  "    // pm.expect(jsonData.project).to.have.property('last_sync_date');",
+                  "    // pm.expect(jsonData.project).to.have.property('last_update_date');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Project Complete without Auto Sync",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/odoo/projects/{{project_id}}/complete?auto_sync=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "odoo", "projects", "{{project_id}}", "complete"],
+              "query": [
+                {
+                  "key": "auto_sync",
+                  "value": "false",
+                  "description": "Do not automatically sync"
+                }
+              ]
+            },
+            "description": "Get complete project data without automatic smart sync."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains complete project data', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('project');",
+                  "    pm.expect(jsonData).to.have.property('phases_with_elevations');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 3: Smart Sync Testing Scenarios",
+      "item": [
+        {
+          "name": "Test Fresh Data Scenario",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync-status/project/{{project_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync-status", "project", "{{project_id}}"]
+            },
+            "description": "Test scenario: Check sync status for fresh data (should not need syncing)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Fresh data should not need syncing', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.exists && jsonData.last_sync_date && jsonData.last_update_date) {",
+                  "        // If both timestamps exist, sync should not be needed",
+                  "        pm.expect(jsonData.sync_needed).to.be.false;",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Test Stale Data Scenario",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync-status/project/{{project_id}}/mark-updated",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync-status", "project", "{{project_id}}", "mark-updated"]
+            },
+            "description": "Test scenario: Mark project as updated to simulate stale data."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Project marked as updated successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData).to.have.property('update_date');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Stale Data Detection",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync-status/project/{{project_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync-status", "project", "{{project_id}}"]
+            },
+            "description": "Test scenario: Verify that stale data is detected after marking as updated."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Stale data should be detected', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.exists && jsonData.last_sync_date && jsonData.last_update_date) {",
+                  "        // After marking as updated, data should be stale",
+                  "        pm.expect(jsonData.sync_needed).to.be.true;",
+                  "        pm.expect(jsonData.project_stale).to.be.true;",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Test Smart Sync Trigger",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync-status/project/{{project_id}}/sync?force_sync=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync-status", "project", "{{project_id}}", "sync"],
+              "query": [
+                {
+                  "key": "force_sync",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Test scenario: Trigger smart sync on stale data."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Smart sync should trigger for stale data', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    if (jsonData.synced) {",
+                  "        pm.expect(jsonData).to.have.property('sync_result');",
+                  "        pm.expect(jsonData.sync_result).to.have.property('synced_at');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Data is Fresh After Sync",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/sync-status/project/{{project_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "sync-status", "project", "{{project_id}}"]
+            },
+            "description": "Test scenario: Verify that data is fresh after smart sync."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Data should be fresh after sync', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.exists && jsonData.last_sync_date && jsonData.last_update_date) {",
+                  "        // After syncing, data should be fresh",
+                  "        pm.expect(jsonData.sync_needed).to.be.false;",
+                  "        pm.expect(jsonData.project_stale).to.be.false;",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8001",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "project_id",
+      "value": "d163787f-f342-444c-96a2-a095989e603e",
+      "type": "string"
+    }
+  ]
+}

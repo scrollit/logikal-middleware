@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Project List View -->
+    <record id="view_mbioe_project_list" model="ir.ui.view">
+        <field name="name">mbioe.project.list</field>
+        <field name="model">mbioe.project</field>
+        <field name="arch" type="xml">
+            <list string="MBIOE Projects" create="false" edit="false" delete="false">
+                <field name="name" string="Project Name"/>
+                <field name="job_number" string="Job Number" optional="show"/>
+                <field name="offer_number" string="Offer Number" optional="hide"/>
+                <field name="person_in_charge" string="Person in Charge" optional="show"/>
+                <field name="estimated" string="Estimated" widget="boolean_toggle"/>
+                <field name="folder_name" string="Folder" optional="show"/>
+                <field name="folder_path" string="Folder Path" optional="hide"/>
+                <field name="phase_count" string="Phases" optional="show"/>
+                <field name="elevation_count" string="Elevations" optional="show"/>
+                <field name="sync_status" string="Sync Status" optional="show"/>
+                <field name="last_api_sync" string="Last Sync" optional="hide"/>
+                <field name="api_changed_date" string="API Changed" optional="hide"/>
+                <field name="days_since_sync" string="Days Since Sync" optional="hide"/>
+                <field name="needs_sync" string="Needs Sync" widget="boolean_toggle" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Project Form View -->
+    <record id="view_mbioe_project_form" model="ir.ui.view">
+        <field name="name">mbioe.project.form</field>
+        <field name="model">mbioe.project</field>
+        <field name="arch" type="xml">
+            <form string="MBIOE Project" create="false" edit="false" delete="false">
+                <header>
+                    <field name="sync_status" widget="statusbar" statusbar_visible="new,updated,unchanged,error"/>
+                </header>
+                
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_folder" 
+                                type="object" 
+                                class="oe_stat_button" 
+                                icon="fa-folder-open-o"
+                                invisible="not folder_id">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">View</span>
+                                <span class="o_stat_text">Folder</span>
+                            </div>
+                        </button>
+                        
+                        <button name="action_view_phases" 
+                                type="object" 
+                                class="oe_stat_button" 
+                                icon="fa-tasks"
+                                invisible="phase_count == 0">
+                            <field name="phase_count" widget="statinfo" string="Phases"/>
+                        </button>
+                        
+                        <button name="action_view_elevations" 
+                                type="object" 
+                                class="oe_stat_button" 
+                                icon="fa-image"
+                                invisible="elevation_count == 0">
+                            <field name="elevation_count" widget="statinfo" string="Elevations"/>
+                        </button>
+                        
+                        <button name="action_sync_phases" 
+                                type="object" 
+                                class="oe_stat_button" 
+                                icon="fa-refresh"
+                                string="Sync Phases">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Sync</span>
+                                <span class="o_stat_text">Phases</span>
+                            </div>
+                        </button>
+                        
+                        <button name="action_sync_elevations" 
+                                type="object" 
+                                class="oe_stat_button" 
+                                icon="fa-cubes"
+                                string="Sync Elevations">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Sync</span>
+                                <span class="o_stat_text">Elevations</span>
+                            </div>
+                        </button>
+                    </div>
+                    
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                        <h2 invisible="not job_number">
+                            Job: <field name="job_number" readonly="1"/>
+                        </h2>
+                    </div>
+                    
+                    <!-- Project Information -->
+                    <group string="Project Information">
+                        <group>
+                            <field name="identifier" readonly="1"/>
+                            <field name="job_number" readonly="1"/>
+                            <field name="offer_number" readonly="1"/>
+                            <field name="person_in_charge" readonly="1"/>
+                            <field name="estimated" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="folder_id" readonly="1"/>
+                            <field name="folder_path" readonly="1"/>
+                            <field name="api_source" readonly="1"/>
+                            <field name="imported" readonly="1"/>
+                        </group>
+                    </group>
+                    
+                    <!-- Synchronization Information -->
+                    <group string="Synchronization Information">
+                        <group>
+                            <field name="api_created_date" readonly="1"/>
+                            <field name="api_changed_date" readonly="1"/>
+                            <field name="last_api_sync" readonly="1"/>
+                            <field name="synced_at" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="days_since_sync" readonly="1"/>
+                            <field name="needs_sync" readonly="1"/>
+                        </group>
+                    </group>
+                    
+                    <!-- Sync Status Information -->
+                    <group string="Status Information" invisible="sync_status == 'new'">
+                        <div class="alert alert-info" invisible="sync_status != 'unchanged'">
+                            <strong>Status:</strong> This project is up to date with the MBIOE API.
+                        </div>
+                        <div class="alert alert-success" invisible="sync_status != 'updated'">
+                            <strong>Status:</strong> This project was recently updated from the MBIOE API.
+                        </div>
+                        <div class="alert alert-warning" invisible="sync_status != 'error'">
+                            <strong>Status:</strong> There was an error synchronizing this project. Check the logs for details.
+                        </div>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Project Search View -->
+    <record id="view_mbioe_project_search" model="ir.ui.view">
+        <field name="name">mbioe.project.search</field>
+        <field name="model">mbioe.project</field>
+        <field name="arch" type="xml">
+            <search string="Search Projects">
+                <field name="name" string="Project Name" filter_domain="[('name', 'ilike', self)]"/>
+                <field name="job_number" string="Job Number"/>
+                <field name="person_in_charge" string="Person in Charge"/>
+                <field name="folder_name" string="Folder"/>
+                <field name="folder_path" string="Folder Path"/>
+                
+                <separator/>
+                <filter name="estimated" string="Estimated" domain="[('estimated', '=', True)]"/>
+                <filter name="not_estimated" string="Not Estimated" domain="[('estimated', '=', False)]"/>
+                <filter name="needs_sync" string="Needs Sync" domain="[('needs_sync', '=', True)]"/>
+                <filter name="recently_synced" string="Recently Synced" domain="[('days_since_sync', '&lt;=', 7)]"/>
+                
+                <separator/>
+                <filter name="sync_status_new" string="New" domain="[('sync_status', '=', 'new')]"/>
+                <filter name="sync_status_updated" string="Updated" domain="[('sync_status', '=', 'updated')]"/>
+                <filter name="sync_status_unchanged" string="Unchanged" domain="[('sync_status', '=', 'unchanged')]"/>
+                <filter name="sync_status_error" string="Error" domain="[('sync_status', '=', 'error')]"/>
+                
+                <group expand="0" string="Group By">
+                    <filter name="group_folder" string="Folder" domain="[]" context="{'group_by': 'folder_id'}"/>
+                    <filter name="group_person" string="Person in Charge" domain="[]" context="{'group_by': 'person_in_charge'}"/>
+                    <filter name="group_estimated" string="Estimated Status" domain="[]" context="{'group_by': 'estimated'}"/>
+                    <filter name="group_sync_status" string="Sync Status" domain="[]" context="{'group_by': 'sync_status'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+</odoo>

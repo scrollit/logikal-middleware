@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Main Menu -->
+    <menuitem id="menu_mbioe_main"
+              name="Logikal"
+              sequence="50"/>
+
+    <!-- Logikal Data Parent Menu -->
+    <menuitem id="menu_mbioe_data"
+              name="Logikal Data"
+              parent="menu_mbioe_main"
+              sequence="10"/>
+
+    <!-- Folders Menu -->
+    <menuitem id="menu_mbioe_folders"
+              name="Folders"
+              parent="menu_mbioe_data"
+              action="action_mbioe_folder"
+              sequence="10"/>
+
+    <!-- Projects Menu -->
+    <menuitem id="menu_mbioe_projects"
+              name="Projects"
+              parent="menu_mbioe_data"
+              action="action_mbioe_project"
+              sequence="20"/>
+
+    <!-- Phases Menu -->
+    <menuitem id="menu_mbioe_phases"
+              name="Phases"
+              parent="menu_mbioe_data"
+              action="action_mbioe_phase"
+              sequence="30"/>
+
+    <!-- Elevations Menu -->
+    <menuitem id="menu_mbioe_elevations"
+              name="Elevations"
+              parent="menu_mbioe_data"
+              action="action_mbioe_elevation"
+              sequence="40"/>
+
+    <!-- Operations Parent Menu -->
+    <menuitem id="menu_mbioe_operations"
+              name="Operations"
+              parent="menu_mbioe_main"
+              sequence="20"/>
+
+    <!-- Logikal Operations Menu -->
+    <menuitem id="menu_mbioe_operations_console"
+              name="Logikal Operations"
+              parent="menu_mbioe_operations"
+              action="srv_open_mbioe_operations"
+              sequence="10"/>
+
+    <!-- Sync Management Menu -->
+    <menuitem id="menu_mbioe_sync"
+              name="Sync Management"
+              parent="menu_mbioe_operations"
+              sequence="20"/>
+
+    <!-- Sync Orchestration Menu -->
+    <menuitem id="menu_mbioe_master_sync"
+              name="Sync Orchestration"
+              parent="menu_mbioe_sync"
+              action="action_mbioe_master_sync"
+              sequence="10"/>
+
+    <!-- Folder Sync Status Menu -->
+    <menuitem id="menu_mbioe_folder_sync"
+              name="Folder Sync Status"
+              parent="menu_mbioe_sync"
+              action="action_mbioe_folder_sync"
+              sequence="20"/>
+
+    <!-- Import Configuration Menu -->
+    <menuitem id="menu_mbioe_import_config"
+              name="Import Configuration"
+              parent="menu_mbioe_operations"
+              action="action_mbioe_import_config"
+              sequence="30"/>
+
+    <!-- Sales Integrations Menu -->
+    <menuitem id="menu_mbioe_sales_integration"
+              name="Sales Integrations"
+              parent="menu_mbioe_operations"
+              action="action_mbioe_sales_integration"
+              sequence="40"/>
+
+    <!-- Session Logs Menu -->
+    <menuitem id="menu_mbioe_session_logs"
+              name="Session Logs"
+              parent="menu_mbioe_operations"
+              action="action_mbioe_session_log"
+              sequence="50"/>
+              
+    <!-- Queue Jobs Menu (temporarily disabled due to Odoo 18 compatibility issues) -->
+    <!-- 
+    <menuitem id="menu_mbioe_queue_jobs"
+              name="Queue Jobs"
+              parent="menu_mbioe_main"
+              action="queue_job.action_queue_job"
+              sequence="55"/>
+    -->
+
+</odoo>

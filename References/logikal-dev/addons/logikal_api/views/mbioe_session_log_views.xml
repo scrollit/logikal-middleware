@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Session Log List View -->
+    <record id="view_mbioe_session_log_list" model="ir.ui.view">
+        <field name="name">mbioe.session.log.list</field>
+        <field name="model">mbioe.session.log</field>
+        <field name="arch" type="xml">
+            <list string="MBIOE Session Logs" default_order="create_date desc">
+                <field name="create_date"/>
+                <field name="operation"/>
+                <field name="status" widget="badge" 
+                       decoration-success="status == 'success'"
+                       decoration-danger="status == 'failed'"
+                       decoration-warning="status == 'warning'"/>
+                <field name="response_code"/>
+                <field name="duration_ms"/>
+                <field name="user_id"/>
+                <field name="response_summary"/>
+                <field name="error_message" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Session Log Form View -->
+    <record id="view_mbioe_session_log_form" model="ir.ui.view">
+        <field name="name">mbioe.session.log.form</field>
+        <field name="model">mbioe.session.log</field>
+        <field name="arch" type="xml">
+            <form string="MBIOE Session Log" create="false" edit="false">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="operation" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="create_date"/>
+                            <field name="status"/>
+                            <field name="response_code"/>
+                            <field name="duration_ms"/>
+                        </group>
+                        <group>
+                            <field name="user_id"/>
+                            <field name="response_summary"/>
+                        </group>
+                    </group>
+                    <group string="Session Information">
+                        <field name="session_token"/>
+                    </group>
+                    <group string="Request Details">
+                        <field name="request_url"/>
+                        <field name="request_method"/>
+                    </group>
+                    <group string="Request Payload" invisible="not request_payload">
+                        <field name="request_payload" nolabel="1" widget="text"/>
+                    </group>
+                    <group string="Response Body" invisible="not response_body">
+                        <field name="response_body" nolabel="1" widget="text"/>
+                    </group>
+                    <group string="Error Details" invisible="not error_message">
+                        <field name="error_message" nolabel="1" widget="text"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Session Log Search View -->
+    <record id="view_mbioe_session_log_search" model="ir.ui.view">
+        <field name="name">mbioe.session.log.search</field>
+        <field name="model">mbioe.session.log</field>
+        <field name="arch" type="xml">
+            <search string="Search Session Logs">
+                <field name="operation"/>
+                <field name="status"/>
+                <field name="user_id"/>
+                <field name="error_message"/>
+                
+                <filter string="Success" name="filter_success" domain="[('status', '=', 'success')]"/>
+                <filter string="Failed" name="filter_failed" domain="[('status', '=', 'failed')]"/>
+                <filter string="Login Operations" name="filter_login" domain="[('operation', '=', 'login')]"/>
+                <filter string="Logout Operations" name="filter_logout" domain="[('operation', '=', 'logout')]"/>
+                
+                <separator/>
+                <filter string="Today" name="filter_today" 
+                        domain="[('create_date', '&gt;=', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter string="Last 7 Days" name="filter_week" 
+                        domain="[('create_date', '&gt;=', (context_today() - datetime.timedelta(days=7)).strftime('%Y-%m-%d'))]"/>
+                
+                <group expand="0" string="Group By">
+                    <filter string="Operation" name="group_operation" context="{'group_by': 'operation'}"/>
+                    <filter string="Status" name="group_status" context="{'group_by': 'status'}"/>
+                    <filter string="User" name="group_user" context="{'group_by': 'user_id'}"/>
+                    <filter string="Date" name="group_date" context="{'group_by': 'create_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+</odoo>

@@ -1,0 +1,552 @@
+{
+	"info": {
+		"_postman_id": "logikal-middleware-phase1",
+		"name": "Logikal Middleware - Phase 1 Authentication",
+		"description": "Complete Postman collection for testing the Logikal Middleware Phase 1 implementation (Client Authentication System)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Client Registration",
+			"item": [
+				{
+					"name": "Register Odoo Instance",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Save client_secret to environment for next request",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('client_secret', response.client_secret);",
+									"    pm.environment.set('registered_client_id', response.client_id);",
+									"    console.log('Client registered successfully:', response.client_id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"client_id\": \"{{client_id}}\",\n    \"name\": \"{{client_name}}\",\n    \"description\": \"{{client_description}}\",\n    \"permissions\": [\"projects:read\", \"elevations:read\", \"admin:read\"],\n    \"rate_limit_per_hour\": 1000\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/client-auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"client-auth",
+								"register"
+							]
+						},
+						"description": "Register a new Odoo client instance with the middleware"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Client - Duplicate ID (Error Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Should return 400 error for duplicate client_id",
+									"pm.test('Status code is 400', function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Error code is CLIENT_ID_EXISTS', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.detail.code).to.eql('CLIENT_ID_EXISTS');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"client_id\": \"{{client_id}}\",\n    \"name\": \"Duplicate Test Client\",\n    \"description\": \"This should fail\",\n    \"permissions\": [\"projects:read\"],\n    \"rate_limit_per_hour\": 500\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/client-auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"client-auth",
+								"register"
+							]
+						},
+						"description": "Test error handling for duplicate client_id"
+					},
+					"response": []
+				}
+			],
+			"description": "Client registration endpoints"
+		},
+		{
+			"name": "2. Client Authentication",
+			"item": [
+				{
+					"name": "Login Client",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Save access_token to environment for authenticated requests",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('access_token', response.access_token);",
+									"    pm.environment.set('token_type', response.token_type);",
+									"    pm.environment.set('expires_in', response.expires_in);",
+									"    console.log('Authentication successful:', response.client_info.client_id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"client_id\": \"{{client_id}}\",\n    \"client_secret\": \"{{client_secret}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/client-auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"client-auth",
+								"login"
+							]
+						},
+						"description": "Authenticate a client and receive JWT token"
+					},
+					"response": []
+				},
+				{
+					"name": "Login Client - Invalid Credentials (Error Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Should return 401 error for invalid credentials",
+									"pm.test('Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('Error code is INVALID_CREDENTIALS', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.detail.code).to.eql('INVALID_CREDENTIALS');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"client_id\": \"invalid-client\",\n    \"client_secret\": \"invalid-secret\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/client-auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"client-auth",
+								"login"
+							]
+						},
+						"description": "Test error handling for invalid credentials"
+					},
+					"response": []
+				}
+			],
+			"description": "Client authentication endpoints"
+		},
+		{
+			"name": "3. Authenticated Endpoints",
+			"item": [
+				{
+					"name": "Get Current Client Info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Verify client info response",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains client info', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('client_id');",
+									"    pm.expect(response).to.have.property('name');",
+									"    pm.expect(response).to.have.property('permissions');",
+									"    pm.expect(response).to.have.property('rate_limit_per_hour');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/client-auth/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"client-auth",
+								"me"
+							]
+						},
+						"description": "Get current authenticated client information"
+					},
+					"response": []
+				},
+				{
+					"name": "List All Clients (Admin)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Verify clients list response",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains clients list', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('clients');",
+									"    pm.expect(response).to.have.property('count');",
+									"    pm.expect(response.clients).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/client-auth/clients",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"client-auth",
+								"clients"
+							]
+						},
+						"description": "List all clients (requires admin:read permission)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Client Info - Invalid Token (Error Test)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Should return 401 error for invalid token",
+									"pm.test('Status code is 401', function () {",
+									"    pm.response.to.have.status(401);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer invalid-token"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/client-auth/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"client-auth",
+								"me"
+							]
+						},
+						"description": "Test error handling for invalid JWT token"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints that require client authentication"
+		},
+		{
+			"name": "4. Logikal Connection (Legacy)",
+			"item": [
+				{
+					"name": "Test Logikal Connection",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Log connection test result",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    console.log('Logikal connection test:', response.success);",
+									"    console.log('Message:', response.message);",
+									"} else {",
+									"    console.log('Logikal connection test failed:', pm.response.status);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/test?base_url={{logikal_base_url}}&username={{logikal_username}}&password={{logikal_password}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"test"
+							],
+							"query": [
+								{
+									"key": "base_url",
+									"value": "{{logikal_base_url}}"
+								},
+								{
+									"key": "username",
+									"value": "{{logikal_username}}"
+								},
+								{
+									"key": "password",
+									"value": "{{logikal_password}}"
+								}
+							]
+						},
+						"description": "Test connection to Logikal API (legacy functionality)"
+					},
+					"response": []
+				},
+				{
+					"name": "Authenticate with Logikal",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Save Logikal token for legacy endpoints",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('logikal_token', response.token);",
+									"    console.log('Logikal authentication successful');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"base_url\": \"{{logikal_base_url}}\",\n    \"username\": \"{{logikal_username}}\",\n    \"password\": \"{{logikal_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Authenticate with Logikal API (legacy functionality)"
+					},
+					"response": []
+				}
+			],
+			"description": "Legacy Logikal authentication endpoints (existing functionality)"
+		},
+		{
+			"name": "5. System Health",
+			"item": [
+				{
+					"name": "Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response indicates healthy status', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.eql('healthy');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check middleware health status"
+					},
+					"response": []
+				},
+				{
+					"name": "Root Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Get middleware root information"
+					},
+					"response": []
+				}
+			],
+			"description": "System health and status endpoints"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global pre-request script",
+					"console.log('Making request to:', pm.request.url);"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script",
+					"pm.test('Response time is less than 5000ms', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+					"});"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8001",
+			"type": "string"
+		}
+	]
+}

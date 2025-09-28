@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Sales Order Line Tree View Enhancement - REMOVED -->
+    <!-- The sale.view_order_line_tree doesn't exist in Odoo 18 or may have been restructured.
+         The main MBIOE functionality works through the sales order form interface.
+         Visual indicators and decorations can be added when the correct view references are found. -->
+    
+    <!-- If needed in the future, find the correct standalone list view reference for Odoo 18 -->
+    
+    <!-- Sales Order Line Form View Enhancement - REMOVED -->
+    <!-- The sale.view_order_line_form doesn't exist in Odoo 18, and since sales order lines
+         are typically edited inline within the sales order, this separate form enhancement
+         is not critical for the main functionality. -->
+    
+    <!-- If needed in the future, find the correct form view reference for Odoo 18 -->
+    
+    <!-- Sales Order Line List View (within Sales Order) Enhancement - REMOVED -->
+    <!-- The sale.view_order_line_tree2 doesn't exist in Odoo 18. This was intended to add
+         visual indicators to the embedded sales order line list within the sales order form.
+         The main functionality works through the sales order interface. -->
+    
+    <!-- If needed in the future, find the correct embedded list view reference for Odoo 18 -->
+    
+</odoo>

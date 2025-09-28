@@ -1,0 +1,791 @@
+{
+    "info": {
+        "_postman_id": "YOUR_POSTMAN_ID",
+        "name": "Logikal Middleware - Phase 5: Advanced Sync Features",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Client Authentication",
+            "item": [
+                {
+                    "name": "Register Client",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"client_id\": \"odoo-instance-phase5\",\n    \"name\": \"Odoo Phase 5 Testing\",\n    \"description\": \"Odoo instance for Phase 5 advanced sync testing\",\n    \"permissions\": [\"projects:read\", \"projects:write\", \"elevations:read\", \"admin:read\", \"admin:write\"]\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/client-auth/register",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "client-auth",
+                                "register"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Login Client",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "var jsonData = pm.response.json();",
+                                    "pm.environment.set(\"access_token\", jsonData.access_token);",
+                                    "pm.environment.set(\"client_id\", jsonData.client_info.client_id);",
+                                    "pm.environment.set(\"client_name\", jsonData.client_info.name);"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"client_id\": \"odoo-instance-phase5\",\n    \"client_secret\": \"YOUR_CLIENT_SECRET_FROM_REGISTER\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/client-auth/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "client-auth",
+                                "login"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Advanced Sync Management",
+            "item": [
+                {
+                    "name": "Get Advanced Sync Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/status",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "status"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Stale Projects",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/stale-objects/project?base_url={{logikal_base_url}}&auth_token={{logikal_auth_token}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "stale-objects",
+                                "project"
+                            ],
+                            "query": [
+                                {
+                                    "key": "base_url",
+                                    "value": "{{logikal_base_url}}"
+                                },
+                                {
+                                    "key": "auth_token",
+                                    "value": "{{logikal_auth_token}}"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Stale Phases",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/stale-objects/phase?base_url={{logikal_base_url}}&auth_token={{logikal_auth_token}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "stale-objects",
+                                "phase"
+                            ],
+                            "query": [
+                                {
+                                    "key": "base_url",
+                                    "value": "{{logikal_base_url}}"
+                                },
+                                {
+                                    "key": "auth_token",
+                                    "value": "{{logikal_auth_token}}"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Stale Elevations",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/stale-objects/elevation?base_url={{logikal_base_url}}&auth_token={{logikal_auth_token}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "stale-objects",
+                                "elevation"
+                            ],
+                            "query": [
+                                {
+                                    "key": "base_url",
+                                    "value": "{{logikal_base_url}}"
+                                },
+                                {
+                                    "key": "auth_token",
+                                    "value": "{{logikal_auth_token}}"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Cascading Sync Operations",
+            "item": [
+                {
+                    "name": "Trigger Cascade Sync for Project",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/cascade-sync/{{project_id}}?base_url={{logikal_base_url}}&auth_token={{logikal_auth_token}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "cascade-sync",
+                                "{{project_id}}"
+                            ],
+                            "query": [
+                                {
+                                    "key": "base_url",
+                                    "value": "{{logikal_base_url}}"
+                                },
+                                {
+                                    "key": "auth_token",
+                                    "value": "{{logikal_auth_token}}"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Trigger Selective Sync for Projects",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "[\n    \"{{project_id}}\"\n]"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/selective-sync?object_type=project&base_url={{logikal_base_url}}&auth_token={{logikal_auth_token}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "selective-sync"
+                            ],
+                            "query": [
+                                {
+                                    "key": "object_type",
+                                    "value": "project"
+                                },
+                                {
+                                    "key": "base_url",
+                                    "value": "{{logikal_base_url}}"
+                                },
+                                {
+                                    "key": "auth_token",
+                                    "value": "{{logikal_auth_token}}"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Trigger Dependency Sync for Project",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/dependency-sync/project/{{project_id}}?base_url={{logikal_base_url}}&auth_token={{logikal_auth_token}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "dependency-sync",
+                                "project",
+                                "{{project_id}}"
+                            ],
+                            "query": [
+                                {
+                                    "key": "base_url",
+                                    "value": "{{logikal_base_url}}"
+                                },
+                                {
+                                    "key": "auth_token",
+                                    "value": "{{logikal_auth_token}}"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Data Consistency & Validation",
+            "item": [
+                {
+                    "name": "Validate Project Data Consistency",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/validate-consistency/{{project_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "validate-consistency",
+                                "{{project_id}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Detect Partial Sync Failures",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/partial-failures/{{project_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "partial-failures",
+                                "{{project_id}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Repair Data Consistency",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/repair-consistency/{{project_id}}",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "repair-consistency",
+                                "{{project_id}}"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Generate Data Integrity Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/integrity-report",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "integrity-report"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Sync Performance & Metrics",
+            "item": [
+                {
+                    "name": "Get Sync Performance Metrics (24h)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/performance-metrics?time_period_hours=24",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "performance-metrics"
+                            ],
+                            "query": [
+                                {
+                                    "key": "time_period_hours",
+                                    "value": "24"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Sync Performance Metrics (168h)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/performance-metrics?time_period_hours=168",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "performance-metrics"
+                            ],
+                            "query": [
+                                {
+                                    "key": "time_period_hours",
+                                    "value": "168"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Project Sync Metrics",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/project-metrics/{{project_id}}?time_period_hours=168",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "project-metrics",
+                                "{{project_id}}"
+                            ],
+                            "query": [
+                                {
+                                    "key": "time_period_hours",
+                                    "value": "168"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Sync Efficiency Report",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/efficiency-report",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "efficiency-report"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Alert System & Monitoring",
+            "item": [
+                {
+                    "name": "Get Current Alerts",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/alerts",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "alerts"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Critical Alerts Only",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/alerts?severity=critical",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "alerts"
+                            ],
+                            "query": [
+                                {
+                                    "key": "severity",
+                                    "value": "critical"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Warning Alerts Only",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/alerts?severity=warning",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "alerts"
+                            ],
+                            "query": [
+                                {
+                                    "key": "severity",
+                                    "value": "warning"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Alert History (24h)",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/alerts/history?hours=24",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "alerts",
+                                "history"
+                            ],
+                            "query": [
+                                {
+                                    "key": "hours",
+                                    "value": "24"
+                                }
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Custom Alert",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"alert_type\": \"custom_test\",\n    \"severity\": \"warning\",\n    \"message\": \"This is a test custom alert for Phase 5\",\n    \"details\": {\n        \"test_phase\": \"phase5\",\n        \"created_by\": \"{{client_name}}\"\n    },\n    \"requires_action\": false\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/alerts/create",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "alerts",
+                                "create"
+                            ]
+                        }
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Acknowledge Alert",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{access_token}}"
+                            },
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \"alert_id\": \"custom_20241228_143000\",\n    \"acknowledged_by\": \"{{client_name}}\",\n    \"notes\": \"Acknowledged during Phase 5 testing\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/advanced-sync/alerts/acknowledge",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "advanced-sync",
+                                "alerts",
+                                "acknowledge"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:8000"
+        },
+        {
+            "key": "project_id",
+            "value": "d163787f-f342-444c-96a2-a095989e603e"
+        },
+        {
+            "key": "logikal_base_url",
+            "value": "https://logikal.api"
+        },
+        {
+            "key": "logikal_auth_token",
+            "value": "YOUR_LOGIKAL_AUTH_TOKEN"
+        }
+    ]
+}

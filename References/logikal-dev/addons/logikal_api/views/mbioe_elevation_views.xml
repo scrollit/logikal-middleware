@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Elevation List View -->
+    <record id="view_mbioe_elevation_list" model="ir.ui.view">
+        <field name="name">mbioe.project.elevation.list</field>
+        <field name="model">mbioe.project.elevation</field>
+        <field name="arch" type="xml">
+            <list string="Project Elevations" create="false" edit="false" delete="false">
+                <field name="sequence" widget="handle"/>
+                <field name="thumbnail" widget="image" width="64px" height="64px"/>
+                <field name="name"/>
+                <field name="project_name"/>
+                <field name="phase_name"/>
+                <field name="elevation_type"/>
+                <field name="state"/>
+                <field name="width"/>
+                <field name="height"/>
+                <field name="area"/>
+                <field name="quotation_price" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="sync_status" widget="badge" 
+                       decoration-success="sync_status == 'unchanged'"
+                       decoration-info="sync_status == 'new'"
+                       decoration-warning="sync_status == 'updated'"
+                       decoration-danger="sync_status == 'error'"/>
+                <field name="days_since_sync"/>
+                <field name="imported_to_sale" widget="boolean_toggle"/>
+                
+                <!-- Action buttons -->
+                <button name="action_view_project" type="object" 
+                        icon="fa-folder-open" title="View Project"/>
+                <button name="action_view_phase" type="object" 
+                        icon="fa-tasks" title="View Phase"/>
+            </list>
+        </field>
+    </record>
+    
+    <!-- Elevation Kanban View -->
+    <record id="view_mbioe_elevation_kanban" model="ir.ui.view">
+        <field name="name">mbioe.project.elevation.kanban</field>
+        <field name="model">mbioe.project.elevation</field>
+        <field name="arch" type="xml">
+            <kanban create="false" edit="false" delete="false" class="o_kanban_mobile">
+                <field name="id"/>
+                <field name="name"/>
+                <field name="project_name"/>
+                <field name="phase_name"/>
+                <field name="elevation_type"/>
+                <field name="quotation_price"/>
+                <field name="currency_id"/>
+                <field name="thumbnail"/>
+                <field name="sync_status"/>
+                <field name="imported_to_sale"/>
+                
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click">
+                            <div class="o_kanban_image">
+                                <img t-att-src="kanban_image('mbioe.project.elevation', 'thumbnail', record.id.raw_value)" 
+                                     alt="Elevation Thumbnail" class="o_image_64_cover"/>
+                            </div>
+                            <div class="oe_kanban_details">
+                                <strong class="o_kanban_record_title">
+                                    <field name="name"/>
+                                </strong>
+                                <div class="o_kanban_record_subtitle">
+                                    <field name="project_name"/> - <field name="phase_name"/>
+                                </div>
+                                <div class="o_kanban_record_bottom">
+                                    <div class="oe_kanban_bottom_left">
+                                        <span t-if="record.elevation_type.raw_value" class="badge badge-secondary">
+                                            <field name="elevation_type"/>
+                                        </span>
+                                        <span t-if="record.quotation_price.raw_value" class="badge badge-primary">
+                                            <field name="quotation_price" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                        </span>
+                                    </div>
+                                    <div class="oe_kanban_bottom_right">
+                                        <span t-att-class="'badge ' + (record.sync_status.raw_value === 'unchanged' ? 'badge-success' : 
+                                                                     record.sync_status.raw_value === 'new' ? 'badge-info' : 
+                                                                     record.sync_status.raw_value === 'updated' ? 'badge-warning' : 'badge-danger')">
+                                            <field name="sync_status"/>
+                                        </span>
+                                        <span t-if="record.imported_to_sale.raw_value" class="badge badge-success">
+                                            Imported to Sales
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+    
+    <!-- Elevation Form View -->
+    <record id="view_mbioe_elevation_form" model="ir.ui.view">
+        <field name="name">mbioe.project.elevation.form</field>
+        <field name="model">mbioe.project.elevation</field>
+        <field name="arch" type="xml">
+            <form string="Project Elevation" create="false" edit="false" delete="false">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <!-- Smart buttons -->
+                        <button name="action_view_project" type="object" 
+                                class="oe_stat_button" icon="fa-folder-open">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">View</span>
+                                <span class="o_stat_text">Project</span>
+                            </div>
+                        </button>
+                        
+                        <button name="action_view_phase" type="object" 
+                                class="oe_stat_button" icon="fa-tasks">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">View</span>
+                                <span class="o_stat_text">Phase</span>
+                            </div>
+                        </button>
+                        
+                        <!-- Future: Sales import button will be added when sales integration is implemented -->
+                        <!--
+                        <button name="action_future_sales_import" type="object" 
+                                class="oe_stat_button" icon="fa-shopping-cart"
+                                invisible="imported_to_sale == True">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Import to</span>
+                                <span class="o_stat_text">Sales</span>
+                            </div>
+                        </button>
+                        -->
+                    </div>
+                    
+                    <field name="thumbnail" widget="image" class="oe_avatar"/>
+                    
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Elevation Name"/>
+                        </h1>
+                        <h2>
+                            <field name="project_name" readonly="1"/> - <field name="phase_name" readonly="1"/>
+                        </h2>
+                    </div>
+                    
+                    <group>
+                        <group name="elevation_info" string="Elevation Information">
+                            <field name="identifier"/>
+                            <field name="version_id"/>
+                            <field name="elevation_type"/>
+                            <field name="state"/>
+                            <field name="sequence"/>
+                            <field name="amount"/>
+                            <field name="created_by_user"/>
+                        </group>
+                        
+                        <group name="dimensions" string="Dimensions">
+                            <field name="width" widget="float" options="{'digits': [16, 2]}"/>
+                            <field name="height" widget="float" options="{'digits': [16, 2]}"/>
+                            <field name="area" widget="float" options="{'digits': [16, 4]}"/>
+                        </group>
+                    </group>
+                    
+                    <group>
+                        <group name="pricing" string="Pricing Information">
+                            <field name="quotation_price" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                            <field name="currency_id"/>
+                            <field name="quotation_price_raw"/>
+                            <field name="price_last_updated"/>
+                        </group>
+                        
+                        <group name="sync_info" string="Synchronization">
+                            <field name="sync_status" widget="badge"
+                                   decoration-success="sync_status == 'unchanged'"
+                                   decoration-info="sync_status == 'new'"
+                                   decoration-warning="sync_status == 'updated'"
+                                   decoration-danger="sync_status == 'error'"/>
+                            <field name="days_since_sync"/>
+                            <field name="needs_sync" widget="boolean_toggle"/>
+                            <field name="synced_at"/>
+                            <field name="last_api_sync"/>
+                        </group>
+                    </group>
+                    
+                    <group>
+                        <group name="parts_info" string="Parts Information">
+                            <field name="has_parts_data" widget="boolean_toggle"/>
+                            <field name="parts_count"/>
+                            <field name="is_element_pricelist_elevation" widget="boolean_toggle"/>
+                            <field name="element_pricelist_id" invisible="is_element_pricelist_elevation == False"/>
+                        </group>
+                        
+                        <group name="sales_info" string="Sales Integration">
+                            <field name="imported_to_sale" widget="boolean_toggle"/>
+                            <!-- Future: sale_order_line_ids field will be added when sales integration is implemented -->
+                        </group>
+                    </group>
+                    
+                    <notebook>
+                        <page string="Descriptions" name="descriptions">
+                            <group>
+                                <field name="automatic_description" widget="text"/>
+                                <field name="system_description" widget="text"/>
+                                <field name="model_description" widget="text"/>
+                                <field name="user_description" widget="text"/>
+                            </group>
+                        </page>
+                        
+                        <page string="Metadata" name="metadata">
+                            <group>
+                                <group>
+                                    <field name="api_created_date"/>
+                                    <field name="api_changed_date"/>
+                                    <field name="api_source"/>
+                                    <field name="imported"/>
+                                </group>
+                                <group>
+                                    <field name="folder_path"/>
+                                    <field name="is_in_recycle_bin" widget="boolean_toggle"/>
+                                    <field name="has_drawing" widget="boolean_toggle"/>
+                                    <field name="thumbnail_filename"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                    
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Elevation Search View -->
+    <record id="view_mbioe_elevation_search" model="ir.ui.view">
+        <field name="name">mbioe.project.elevation.search</field>
+        <field name="model">mbioe.project.elevation</field>
+        <field name="arch" type="xml">
+            <search string="Search Elevations">
+                <field name="name" string="Elevation" 
+                       filter_domain="[('name', 'ilike', self)]"/>
+                <field name="project_name" string="Project"
+                       filter_domain="[('project_name', 'ilike', self)]"/>
+                <field name="phase_name" string="Phase"
+                       filter_domain="[('phase_name', 'ilike', self)]"/>
+                <field name="elevation_type"/>
+                <field name="state"/>
+                
+                <separator/>
+                
+                <!-- Filters -->
+                <filter name="filter_has_thumbnail" string="Has Thumbnail"
+                        domain="[('thumbnail', '!=', False)]"/>
+                <filter name="filter_has_price" string="Has Price"
+                        domain="[('quotation_price', '>', 0)]"/>
+                <filter name="filter_has_parts" string="Has Parts Data"
+                        domain="[('has_parts_data', '=', True)]"/>
+                <filter name="filter_imported_to_sale" string="Imported to Sales"
+                        domain="[('imported_to_sale', '=', True)]"/>
+                <filter name="filter_not_imported" string="Not Imported"
+                        domain="[('imported_to_sale', '=', False)]"/>
+                <filter name="filter_needs_sync" string="Needs Sync"
+                        domain="[('needs_sync', '=', True)]"/>
+                <filter name="filter_not_in_recycle" string="Active (Not in Recycle Bin)"
+                        domain="[('is_in_recycle_bin', '=', False)]"/>
+                
+                <separator/>
+                
+                <filter name="filter_sync_new" string="New"
+                        domain="[('sync_status', '=', 'new')]"/>
+                <filter name="filter_sync_updated" string="Updated"
+                        domain="[('sync_status', '=', 'updated')]"/>
+                <filter name="filter_sync_unchanged" string="Unchanged"
+                        domain="[('sync_status', '=', 'unchanged')]"/>
+                <filter name="filter_sync_error" string="Sync Error"
+                        domain="[('sync_status', '=', 'error')]"/>
+                
+                <separator/>
+                
+                <!-- Group By -->
+                <group expand="0" string="Group By">
+                    <filter name="group_by_project" string="Project"
+                            context="{'group_by': 'project_id'}"/>
+                    <filter name="group_by_phase" string="Phase"
+                            context="{'group_by': 'phase_id'}"/>
+                    <filter name="group_by_elevation_type" string="Elevation Type"
+                            context="{'group_by': 'elevation_type'}"/>
+                    <filter name="group_by_state" string="State"
+                            context="{'group_by': 'state'}"/>
+                    <filter name="group_by_sync_status" string="Sync Status"
+                            context="{'group_by': 'sync_status'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+</odoo>

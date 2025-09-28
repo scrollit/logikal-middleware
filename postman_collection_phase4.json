@@ -1,0 +1,653 @@
+{
+  "info": {
+    "name": "Logikal Middleware - Phase 4: Background Sync Scheduler",
+    "description": "Phase 4 endpoints for background sync scheduling, job monitoring, and Celery task management",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Phase 4: Scheduler Status & Monitoring",
+      "item": [
+        {
+          "name": "Get Scheduler Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "status"]
+            },
+            "description": "Get overall scheduler status, worker information, and active tasks."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains scheduler status', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('scheduler_enabled');",
+                  "    pm.expect(jsonData).to.have.property('beat_schedule');",
+                  "    pm.expect(jsonData).to.have.property('worker_stats');",
+                  "    pm.expect(jsonData).to.have.property('active_tasks');",
+                  "});",
+                  "",
+                  "pm.test('Response contains sync configuration', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('background_sync_enabled');",
+                  "    pm.expect(jsonData).to.have.property('sync_interval_seconds');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Worker Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/workers",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "workers"]
+            },
+            "description": "Get statistics about Celery workers."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains worker information', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('workers');",
+                  "    pm.expect(jsonData).to.have.property('total_workers');",
+                  "    pm.expect(jsonData).to.have.property('checked_at');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Active Tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/tasks/active",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "tasks", "active"]
+            },
+            "description": "Get information about currently active tasks."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains active tasks information', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('active_tasks');",
+                  "    pm.expect(jsonData).to.have.property('total_active');",
+                  "    pm.expect(jsonData).to.have.property('checked_at');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Scheduled Tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/tasks/scheduled",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "tasks", "scheduled"]
+            },
+            "description": "Get information about scheduled tasks."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains scheduled tasks information', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('scheduled_tasks');",
+                  "    pm.expect(jsonData).to.have.property('total_scheduled');",
+                  "    pm.expect(jsonData).to.have.property('checked_at');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Scheduler Configuration",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/config",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "config"]
+            },
+            "description": "Get scheduler configuration settings."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains scheduler configuration', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('background_sync_enabled');",
+                  "    pm.expect(jsonData).to.have.property('sync_interval_seconds');",
+                  "    pm.expect(jsonData).to.have.property('max_concurrent_tasks');",
+                  "    pm.expect(jsonData).to.have.property('task_timeout_seconds');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 4: Background Sync Operations",
+      "item": [
+        {
+          "name": "Start Project Background Sync",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/sync/project/{{project_id}}?force_sync=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "sync", "project", "{{project_id}}"],
+              "query": [
+                {
+                  "key": "force_sync",
+                  "value": "false",
+                  "description": "Force sync even if data appears up to date"
+                }
+              ]
+            },
+            "description": "Start a background sync for a specific project."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response indicates sync started successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData).to.have.property('task_id');",
+                  "    pm.expect(jsonData).to.have.property('project_id');",
+                  "    pm.expect(jsonData).to.have.property('started_at');",
+                  "});",
+                  "",
+                  "// Store task_id for later use",
+                  "if (pm.response.json().task_id) {",
+                  "    pm.environment.set('background_task_id', pm.response.json().task_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Start Batch Background Sync",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\"d163787f-f342-444c-96a2-a095989e603e\", \"478b9c5d-a5f3-4381-bd79-daa83d44af4c\"]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/sync/batch?force_sync=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "sync", "batch"],
+              "query": [
+                {
+                  "key": "force_sync",
+                  "value": "false",
+                  "description": "Force sync even if data appears up to date"
+                }
+              ]
+            },
+            "description": "Start a background batch sync for multiple projects."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response indicates batch sync started successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData).to.have.property('task_id');",
+                  "    pm.expect(jsonData).to.have.property('project_ids');",
+                  "    pm.expect(jsonData).to.have.property('project_count');",
+                  "});",
+                  "",
+                  "// Store batch task_id for later use",
+                  "if (pm.response.json().task_id) {",
+                  "    pm.environment.set('batch_task_id', pm.response.json().task_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Start Full Background Sync",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/sync/full",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "sync", "full"]
+            },
+            "description": "Start a background full sync of all projects."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response indicates full sync started successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData).to.have.property('task_id');",
+                  "    pm.expect(jsonData).to.have.property('sync_type', 'full');",
+                  "});",
+                  "",
+                  "// Store full sync task_id for later use",
+                  "if (pm.response.json().task_id) {",
+                  "    pm.environment.set('full_sync_task_id', pm.response.json().task_id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 4: Task Monitoring & Management",
+      "item": [
+        {
+          "name": "Get Task Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/tasks/{{background_task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "tasks", "{{background_task_id}}"]
+            },
+            "description": "Get the status of a specific background task."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains task status information', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('task_id');",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "});",
+                  "",
+                  "pm.test('Task status is valid', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    const validStatuses = ['PENDING', 'PROGRESS', 'SUCCESS', 'FAILURE'];",
+                  "    pm.expect(validStatuses).to.include(jsonData.status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel Task",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/tasks/{{background_task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "tasks", "{{background_task_id}}"]
+            },
+            "description": "Cancel a running background task."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response indicates task cancellation', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "    pm.expect(jsonData).to.have.property('task_id');",
+                  "    pm.expect(jsonData).to.have.property('cancelled_at');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Phase 4: Background Sync Testing Scenarios",
+      "item": [
+        {
+          "name": "Test Background Sync Workflow",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/sync/project/{{project_id}}?force_sync=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "sync", "project", "{{project_id}}"],
+              "query": [
+                {
+                  "key": "force_sync",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Test scenario: Start a background sync and monitor its progress."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Background sync started successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData).to.have.property('task_id');",
+                  "    ",
+                  "    // Store task ID for monitoring",
+                  "    pm.environment.set('monitor_task_id', jsonData.task_id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Monitor Task Progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/tasks/{{monitor_task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "tasks", "{{monitor_task_id}}"]
+            },
+            "description": "Test scenario: Monitor the progress of a background task."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Task status is available', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "    ",
+                  "    if (jsonData.status === 'PROGRESS') {",
+                  "        pm.expect(jsonData).to.have.property('current');",
+                  "        pm.expect(jsonData).to.have.property('total');",
+                  "        pm.expect(jsonData).to.have.property('message');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Test Batch Sync Performance",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\"d163787f-f342-444c-96a2-a095989e603e\", \"478b9c5d-a5f3-4381-bd79-daa83d44af4c\", \"45bbdefa-0a8d-4d33-9f07-6163350bbdb0\"]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/scheduler/sync/batch?force_sync=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "scheduler", "sync", "batch"],
+              "query": [
+                {
+                  "key": "force_sync",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Test scenario: Test batch sync performance with multiple projects."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Batch sync started successfully', function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.success).to.be.true;",
+                  "    pm.expect(jsonData).to.have.property('project_count');",
+                  "    pm.expect(jsonData.project_count).to.be.greaterThan(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8001",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "project_id",
+      "value": "d163787f-f342-444c-96a2-a095989e603e",
+      "type": "string"
+    },
+    {
+      "key": "background_task_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "batch_task_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "full_sync_task_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "monitor_task_id",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

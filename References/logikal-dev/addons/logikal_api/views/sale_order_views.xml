@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Sales Order Form View Enhancement -->
+    <record id="view_order_form_mbioe_integration" model="ir.ui.view">
+        <field name="name">sale.order.form.mbioe.integration</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <!-- Add Logikal Import button to header -->
+            <xpath expr="//header" position="inside">
+                <button name="action_logikal_import_wizard" 
+                        type="object" 
+                        class="btn-primary" 
+                        icon="fa-download"
+                        string="Logikal Import"
+                        help="Import Logikal project data"/>
+            </xpath>
+            
+            <!-- Add product thumbnails to sales order lines -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_id']" position="before">
+                <field name="product_image_256" widget="image" 
+                       options="{'size': [64, 64]}"
+                       invisible="display_type == 'line_section'"
+                       help="Product thumbnail for easy identification"/>
+            </xpath>
+            
+            <!-- Ensure product_id is explicitly loaded for related fields -->
+            <xpath expr="//field[@name='order_line']/list/field[@name='product_id']" position="attributes">
+                <attribute name="options">{'no_open': True}</attribute>
+            </xpath>
+            
+            <!-- Add special styling for MBIOE imported lines -->
+            <xpath expr="//field[@name='order_line']/list" position="attributes">
+                <attribute name="decoration-info">imported_from_mbioe and imported_from_mbioe == True</attribute>
+            </xpath>
+            
+            <!-- Add Logikal Import tab to notebook -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Logikal Import" name="logikal_import">
+                    <!-- Invisible fields for computations -->
+                    <field name="has_mbioe_project" invisible="1"/>
+                    
+                    <!-- 2-Column Layout -->
+                    <group col="2">
+                        <!-- Left Column: Input/Selection -->
+                        <group string="Project Selection" name="project_selection">
+                            <!-- Project Selection -->
+                            <field name="mbioe_project_id" 
+                                   placeholder="Select MBIOE Project..."
+                                   options="{'no_create': True, 'no_open': True}"
+                                   widget="selection2"/>
+                            
+                            <!-- Project Information -->
+                            <field name="available_phases_count" readonly="1"
+                                   invisible="not mbioe_project_id"/>
+                        </group>
+                        
+                        <!-- Right Column: Status/Actions -->
+                        <group string="Import Status" name="import_status">
+                            <!-- Import Status Display -->
+                            <field name="mbioe_import_status" readonly="1"
+                                   widget="badge"
+                                   decoration-success="mbioe_import_status == 'complete'"
+                                   decoration-warning="mbioe_import_status == 'partial'"
+                                   decoration-danger="mbioe_import_status == 'error'"
+                                   decoration-info="mbioe_import_status == 'none'"/>
+                            
+                            <field name="mbioe_last_import" readonly="1"
+                                   invisible="mbioe_import_status == 'none'"/>
+                            
+                            <field name="mbioe_imported_elevations_count" readonly="1"
+                                   invisible="mbioe_import_status == 'none'"/>
+                        </group>
+                    </group>
+                    
+                    <!-- Phase Selection Section (full width when project selected) -->
+                    <group string="Select Phases to Import" name="phase_selection"
+                           invisible="not mbioe_project_id">
+                        <field name="mbioe_phase_ids" 
+                               widget="many2many_checkboxes"
+                               nolabel="1"
+                               options="{'horizontal': True}"/>
+                    </group>
+                    
+                    <!-- Action Buttons Section -->
+                    <group string="Clear Import" name="import_actions">
+                        <div class="oe_button_box">
+                            <!-- Clear Import Button -->
+                            <button name="action_clear_mbioe_import" 
+                                    string="Clear MBIOE Import" 
+                                    type="object" 
+                                    class="btn-secondary"
+                                    icon="fa-trash"
+                                    invisible="mbioe_import_status == 'none'"
+                                    readonly="state in ['done', 'cancel']"
+                                    confirm="This will remove all imported MBIOE lines. Continue?"/>
+                        </div>
+                    </group>
+                    
+                </page>
+            </xpath>
+        </field>
+    </record>
+    
+    <!-- Sales Order List View Enhancement -->
+    <record id="view_order_tree_mbioe_integration" model="ir.ui.view">
+        <field name="name">sale.order.tree.mbioe.integration</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_tree"/>
+        <field name="arch" type="xml">
+            <!-- Add MBIOE columns to list view -->
+            <field name="amount_total" position="after">
+                <field name="mbioe_project_id" optional="hide"/>
+                <field name="mbioe_import_status" optional="hide"
+                       widget="badge"
+                       decoration-success="mbioe_import_status == 'complete'"
+                       decoration-warning="mbioe_import_status == 'partial'"
+                       decoration-danger="mbioe_import_status == 'error'"
+                       decoration-info="mbioe_import_status == 'none'"/>
+                <field name="mbioe_imported_elevations_count" optional="hide"/>
+            </field>
+        </field>
+    </record>
+    
+    <!-- Sales Order Search View Enhancement -->
+    <record id="view_sales_order_filter_mbioe_integration" model="ir.ui.view">
+        <field name="name">sale.order.search.mbioe.integration</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <!-- Add MBIOE search options -->
+            <field name="name" position="after">
+                <field name="mbioe_project_id" string="MBIOE Project"/>
+            </field>
+            
+            <!-- Add MBIOE filters -->
+            <filter name="my_sale_orders_filter" position="after">
+                <separator/>
+                <filter string="With MBIOE Project" name="has_mbioe_project" 
+                        domain="[('mbioe_project_id', '!=', False)]"/>
+                <filter string="MBIOE Imported" name="mbioe_imported" 
+                        domain="[('mbioe_import_status', '!=', 'none')]"/>
+                <filter string="Import Complete" name="import_complete" 
+                        domain="[('mbioe_import_status', '=', 'complete')]"/>
+                <filter string="Import Errors" name="import_errors" 
+                        domain="[('mbioe_import_status', '=', 'error')]"/>
+            </filter>
+            
+            <!-- Add group by options -->
+            <xpath expr="//group[@expand='0']" position="inside">
+                <filter string="MBIOE Project" name="group_by_mbioe_project" 
+                        domain="[]" context="{'group_by': 'mbioe_project_id'}"/>
+                <filter string="Import Status" name="group_by_import_status" 
+                        domain="[]" context="{'group_by': 'mbioe_import_status'}"/>
+            </xpath>
+        </field>
+    </record>
+    
+</odoo>

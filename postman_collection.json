@@ -1,0 +1,895 @@
+{
+	"info": {
+		"_postman_id": "logikal-middleware-complete",
+		"name": "Logikal Middleware - Complete API Collection",
+		"description": "Complete Postman collection for testing the Logikal Middleware - includes Phase 1 (Client Authentication) and Phase 2 (Direct Data Access for Odoo Integration)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Phase 1 - Client Authentication",
+			"item": [
+				{
+					"name": "1. Client Registration",
+					"item": [
+						{
+							"name": "Register Odoo Instance",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// Save client_secret to environment for next request",
+											"if (pm.response.code === 200) {",
+											"    const response = pm.response.json();",
+											"    pm.environment.set('client_secret', response.client_secret);",
+											"    pm.environment.set('registered_client_id', response.client_id);",
+											"    console.log('Client registered successfully:', response.client_id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"client_id\": \"{{client_id}}\",\n    \"name\": \"{{client_name}}\",\n    \"description\": \"{{client_description}}\",\n    \"permissions\": [\"projects:read\", \"elevations:read\", \"admin:read\"],\n    \"rate_limit_per_hour\": 1000\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/client-auth/register",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"client-auth",
+										"register"
+									]
+								},
+								"description": "Register a new Odoo client instance with the middleware"
+							},
+							"response": []
+						},
+						{
+							"name": "Register Client - Duplicate ID (Error Test)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// Should return 400 error for duplicate client_id",
+											"pm.test('Status code is 400', function () {",
+											"    pm.response.to.have.status(400);",
+											"});",
+											"",
+											"pm.test('Error code is CLIENT_ID_EXISTS', function () {",
+											"    const response = pm.response.json();",
+											"    pm.expect(response.detail.code).to.eql('CLIENT_ID_EXISTS');",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"client_id\": \"{{client_id}}\",\n    \"name\": \"Duplicate Test Client\",\n    \"description\": \"This should fail\",\n    \"permissions\": [\"projects:read\"],\n    \"rate_limit_per_hour\": 500\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/client-auth/register",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"client-auth",
+										"register"
+									]
+								},
+								"description": "Test error handling for duplicate client_id"
+							},
+							"response": []
+						}
+					],
+					"description": "Client registration endpoints"
+				},
+				{
+					"name": "2. Client Authentication",
+					"item": [
+						{
+							"name": "Login Client",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// Save access_token to environment for authenticated requests",
+											"if (pm.response.code === 200) {",
+											"    const response = pm.response.json();",
+											"    pm.environment.set('access_token', response.access_token);",
+											"    pm.environment.set('token_type', response.token_type);",
+											"    pm.environment.set('expires_in', response.expires_in);",
+											"    console.log('Authentication successful:', response.client_info.client_id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"client_id\": \"{{client_id}}\",\n    \"client_secret\": \"{{client_secret}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/client-auth/login",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"client-auth",
+										"login"
+									]
+								},
+								"description": "Authenticate a client and receive JWT token"
+							},
+							"response": []
+						},
+						{
+							"name": "Login Client - Invalid Credentials (Error Test)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// Should return 401 error for invalid credentials",
+											"pm.test('Status code is 401', function () {",
+											"    pm.response.to.have.status(401);",
+											"});",
+											"",
+											"pm.test('Error code is INVALID_CREDENTIALS', function () {",
+											"    const response = pm.response.json();",
+											"    pm.expect(response.detail.code).to.eql('INVALID_CREDENTIALS');",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"client_id\": \"invalid-client\",\n    \"client_secret\": \"invalid-secret\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/client-auth/login",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"client-auth",
+										"login"
+									]
+								},
+								"description": "Test error handling for invalid credentials"
+							},
+							"response": []
+						}
+					],
+					"description": "Client authentication endpoints"
+				},
+				{
+					"name": "3. Authenticated Endpoints",
+					"item": [
+						{
+							"name": "Get Current Client Info",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// Verify client info response",
+											"pm.test('Status code is 200', function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test('Response contains client info', function () {",
+											"    const response = pm.response.json();",
+											"    pm.expect(response).to.have.property('client_id');",
+											"    pm.expect(response).to.have.property('name');",
+											"    pm.expect(response).to.have.property('permissions');",
+											"    pm.expect(response).to.have.property('rate_limit_per_hour');",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/client-auth/me",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"client-auth",
+										"me"
+									]
+								},
+								"description": "Get current authenticated client information"
+							},
+							"response": []
+						},
+						{
+							"name": "List All Clients (Admin)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// Verify clients list response",
+											"pm.test('Status code is 200', function () {",
+											"    pm.response.to.have.status(200);",
+											"});",
+											"",
+											"pm.test('Response contains clients list', function () {",
+											"    const response = pm.response.json();",
+											"    pm.expect(response).to.be.an('array');",
+											"    pm.expect(response.length).to.be.at.least(1);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{access_token}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/client-auth/clients",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"client-auth",
+										"clients"
+									]
+								},
+								"description": "List all clients (requires admin:read permission)"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Client Info - Invalid Token (Error Test)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// Should return 401 error for invalid token",
+											"pm.test('Status code is 401', function () {",
+											"    pm.response.to.have.status(401);",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer invalid-token"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/client-auth/me",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"client-auth",
+										"me"
+									]
+								},
+								"description": "Test error handling for invalid JWT token"
+							},
+							"response": []
+						}
+					],
+					"description": "Endpoints that require client authentication"
+				}
+			],
+			"description": "Phase 1: Client Authentication System - JWT-based authentication for Odoo instances"
+		},
+		{
+			"name": "Phase 2 - Direct Data Access (Odoo Integration)",
+			"item": [
+				{
+					"name": "Get All Projects (Odoo)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Verify projects list response",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains projects list', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('projects');",
+									"    pm.expect(response).to.have.property('count');",
+									"    pm.expect(response.projects).to.be.an('array');",
+									"    pm.expect(response.count).to.be.at.least(0);",
+									"});",
+									"",
+									"// Save first project ID for other requests",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.projects.length > 0) {",
+									"        pm.environment.set('project_id', response.projects[0].id);",
+									"        console.log('First project ID set:', response.projects[0].id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/odoo/projects",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"odoo",
+								"projects"
+							]
+						},
+						"description": "Get all projects directly from middleware database (no Logikal credentials needed)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Specific Project (Odoo)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Verify project response",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains project data', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('id');",
+									"    pm.expect(response).to.have.property('name');",
+									"    pm.expect(response).to.have.property('phases');",
+									"    pm.expect(response).to.have.property('phases_count');",
+									"    pm.expect(response).to.have.property('total_elevations');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/odoo/projects/{{project_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"odoo",
+								"projects",
+								"{{project_id}}"
+							]
+						},
+						"description": "Get a specific project with its phases and elevations"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Project Complete (Odoo)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Verify complete project response",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains complete project data', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('project');",
+									"    pm.expect(response).to.have.property('phases_with_elevations');",
+									"    pm.expect(response).to.have.property('summary');",
+									"    pm.expect(response.project).to.have.property('id');",
+									"    pm.expect(response.project).to.have.property('name');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/odoo/projects/{{project_id}}/complete",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"odoo",
+								"projects",
+								"{{project_id}}",
+								"complete"
+							]
+						},
+						"description": "Get complete project data with all phases and elevations"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Project Phases (Odoo)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Verify phases response",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response is an array', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.be.an('array');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/odoo/projects/{{project_id}}/phases",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"odoo",
+								"projects",
+								"{{project_id}}",
+								"phases"
+							]
+						},
+						"description": "Get all phases for a specific project"
+					},
+					"response": []
+				},
+				{
+					"name": "Search Projects (Odoo)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Verify search response",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains search results', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('results');",
+									"    pm.expect(response).to.have.property('query');",
+									"    pm.expect(response).to.have.property('count');",
+									"    pm.expect(response.results).to.be.an('array');",
+									"    pm.expect(response.query).to.eql('{{search_query}}');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/odoo/search?q={{search_query}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"odoo",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "{{search_query}}",
+									"description": "Search query"
+								}
+							]
+						},
+						"description": "Search projects by name or description"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Project Statistics (Odoo)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Verify stats response",
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response contains statistics', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response).to.have.property('total_projects');",
+									"    pm.expect(response).to.have.property('total_phases');",
+									"    pm.expect(response).to.have.property('total_elevations');",
+									"    pm.expect(response).to.have.property('projects');",
+									"    pm.expect(response.total_projects).to.be.a('number');",
+									"    pm.expect(response.total_phases).to.be.a('number');",
+									"    pm.expect(response.total_elevations).to.be.a('number');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/odoo/stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"odoo",
+								"stats"
+							]
+						},
+						"description": "Get project statistics and summary"
+					},
+					"response": []
+				}
+			],
+			"description": "Phase 2: Direct Data Access Endpoints for Odoo Integration - Database-first approach without Logikal credentials"
+		},
+		{
+			"name": "Legacy Endpoints (Logikal Integration)",
+			"item": [
+				{
+					"name": "Test Logikal Connection",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Log connection test result",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    console.log('Logikal connection test:', response.success);",
+									"    console.log('Message:', response.message);",
+									"} else {",
+									"    console.log('Logikal connection test failed:', pm.response.status);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/test?base_url={{logikal_base_url}}&username={{logikal_username}}&password={{logikal_password}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"test"
+							],
+							"query": [
+								{
+									"key": "base_url",
+									"value": "{{logikal_base_url}}"
+								},
+								{
+									"key": "username",
+									"value": "{{logikal_username}}"
+								},
+								{
+									"key": "password",
+									"value": "{{logikal_password}}"
+								}
+							]
+						},
+						"description": "Test connection to Logikal API (legacy functionality)"
+					},
+					"response": []
+				},
+				{
+					"name": "Authenticate with Logikal",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// Save Logikal token for legacy endpoints",
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.environment.set('logikal_token', response.token);",
+									"    console.log('Logikal authentication successful');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"base_url\": \"{{logikal_base_url}}\",\n    \"username\": \"{{logikal_username}}\",\n    \"password\": \"{{logikal_password}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						},
+						"description": "Authenticate with Logikal API (legacy functionality)"
+					},
+					"response": []
+				}
+			],
+			"description": "Legacy Logikal authentication endpoints (existing functionality for backward compatibility)"
+		},
+		{
+			"name": "System Health & Status",
+			"item": [
+				{
+					"name": "Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response indicates healthy status', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.status).to.eql('healthy');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						},
+						"description": "Check middleware health status"
+					},
+					"response": []
+				},
+				{
+					"name": "Root Endpoint",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Get middleware root information"
+					},
+					"response": []
+				}
+			],
+			"description": "System health and status endpoints"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global pre-request script",
+					"console.log('Making request to:', pm.request.url.toString());",
+					"",
+					"// Log request details for debugging",
+					"if (pm.request.headers.has('Authorization')) {",
+					"    console.log('Request includes Authorization header');",
+					"} else {",
+					"    console.log('Request does not include Authorization header');",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test script",
+					"pm.test('Response time is less than 5000ms', function () {",
+					"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+					"});",
+					"",
+					"pm.test('Response has valid JSON', function () {",
+					"    if (pm.response.headers.get('Content-Type') && pm.response.headers.get('Content-Type').includes('application/json')) {",
+					"        pm.response.to.be.json;",
+					"    }",
+					"});",
+					"",
+					"// Log response status for debugging",
+					"console.log('Response Status:', pm.response.status, pm.response.code);",
+					"",
+					"// Log response time",
+					"console.log('Response Time:', pm.response.responseTime + 'ms');"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8001",
+			"type": "string",
+			"description": "Base URL for the Logikal Middleware API"
+		}
+	]
+}
