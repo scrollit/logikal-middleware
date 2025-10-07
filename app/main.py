@@ -55,9 +55,9 @@ app.include_router(health_router, prefix=settings.API_V1_STR)
 if production_settings.ENVIRONMENT == "production":
     setup_security_middleware(app)
 
-# Setup Prometheus metrics
-if production_settings.PROMETHEUS_ENABLED:
-    setup_prometheus_metrics(app)
+# Setup Prometheus metrics (temporarily disabled due to logging issue)
+# if production_settings.PROMETHEUS_ENABLED:
+#     setup_prometheus_metrics(app)
 
 # Setup logging middleware
 app.add_middleware(LoggingMiddleware)
