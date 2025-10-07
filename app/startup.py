@@ -34,8 +34,9 @@ def wait_for_database(max_retries=30, delay=2):
     for attempt in range(max_retries):
         try:
             from core.database import engine
+            from sqlalchemy import text
             with engine.connect() as connection:
-                connection.execute("SELECT 1")
+                connection.execute(text("SELECT 1"))
             logger.info("Database is available")
             return True
         except Exception as e:

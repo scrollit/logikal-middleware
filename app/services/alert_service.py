@@ -326,7 +326,8 @@ class AlertService:
         try:
             # Check database connection health
             try:
-                self.db.execute("SELECT 1")
+                from sqlalchemy import text
+                self.db.execute(text("SELECT 1"))
             except Exception as e:
                 alerts.append({
                     "type": "system_health",
