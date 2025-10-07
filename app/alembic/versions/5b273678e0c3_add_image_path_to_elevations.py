@@ -35,16 +35,26 @@ def upgrade() -> None:
     clients_table_exists = result.scalar()
     
     if clients_table_exists:
-        # Drop indexes if they exist
-        try:
-            op.drop_index(op.f('ix_clients_client_id'), table_name='clients')
-        except:
-            pass  # Index doesn't exist, continue
+        # Check if indexes exist before dropping them
+        index_client_id_exists = connection.execute(sa.text("""
+            SELECT EXISTS (
+                SELECT FROM pg_indexes 
+                WHERE indexname = 'ix_clients_client_id'
+            );
+        """)).scalar()
         
-        try:
+        index_id_exists = connection.execute(sa.text("""
+            SELECT EXISTS (
+                SELECT FROM pg_indexes 
+                WHERE indexname = 'ix_clients_id'
+            );
+        """)).scalar()
+        
+        if index_client_id_exists:
+            op.drop_index(op.f('ix_clients_client_id'), table_name='clients')
+        
+        if index_id_exists:
             op.drop_index(op.f('ix_clients_id'), table_name='clients')
-        except:
-            pass  # Index doesn't exist, continue
             
         # Drop the table
         op.drop_table('clients')
@@ -65,14 +75,27 @@ def upgrade() -> None:
                existing_type=sa.VARCHAR(length=50),
                nullable=False,
                comment='Sync status: pending, synced, error')
-    # Drop the old index if it exists
-    try:
-        op.drop_index(op.f('ix_phases_project_logikal_unique'), table_name='phases')
-    except:
-        pass  # Index doesn't exist, continue
+    # Check if the old index exists before dropping it
+    old_index_exists = connection.execute(sa.text("""
+        SELECT EXISTS (
+            SELECT FROM pg_indexes 
+            WHERE indexname = 'ix_phases_project_logikal_unique'
+        );
+    """)).scalar()
     
-    # Create the new index
-    op.create_index(op.f('ix_phases_logikal_id'), 'phases', ['logikal_id'], unique=True)
+    if old_index_exists:
+        op.drop_index(op.f('ix_phases_project_logikal_unique'), table_name='phases')
+    
+    # Check if the new index already exists before creating it
+    new_index_exists = connection.execute(sa.text("""
+        SELECT EXISTS (
+            SELECT FROM pg_indexes 
+            WHERE indexname = 'ix_phases_logikal_id'
+        );
+    """)).scalar()
+    
+    if not new_index_exists:
+        op.create_index(op.f('ix_phases_logikal_id'), 'phases', ['logikal_id'], unique=True)
     # ### end Alembic commands ###
 
 

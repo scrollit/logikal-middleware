@@ -35,16 +35,26 @@ def upgrade() -> None:
     clients_table_exists = result.scalar()
     
     if clients_table_exists:
-        # Drop indexes if they exist
-        try:
-            op.drop_index(op.f('ix_clients_client_id'), table_name='clients')
-        except:
-            pass  # Index doesn't exist, continue
+        # Check if indexes exist before dropping them
+        index_client_id_exists = connection.execute(sa.text("""
+            SELECT EXISTS (
+                SELECT FROM pg_indexes 
+                WHERE indexname = 'ix_clients_client_id'
+            );
+        """)).scalar()
         
-        try:
+        index_id_exists = connection.execute(sa.text("""
+            SELECT EXISTS (
+                SELECT FROM pg_indexes 
+                WHERE indexname = 'ix_clients_id'
+            );
+        """)).scalar()
+        
+        if index_client_id_exists:
+            op.drop_index(op.f('ix_clients_client_id'), table_name='clients')
+        
+        if index_id_exists:
             op.drop_index(op.f('ix_clients_id'), table_name='clients')
-        except:
-            pass  # Index doesn't exist, continue
             
         # Drop the table
         op.drop_table('clients')
