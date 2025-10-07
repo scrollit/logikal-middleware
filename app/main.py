@@ -51,9 +51,9 @@ app.include_router(admin_auth.router, prefix=settings.API_V1_STR)
 app.include_router(admin_ui_router)
 app.include_router(health_router, prefix=settings.API_V1_STR)
 
-# Setup production middleware
-if production_settings.ENVIRONMENT == "production":
-    setup_security_middleware(app)
+# Setup production middleware (temporarily disabled due to logging issues)
+# if production_settings.ENVIRONMENT == "production":
+#     setup_security_middleware(app)
 
 # Setup Prometheus metrics (temporarily disabled due to logging issue)
 # if production_settings.PROMETHEUS_ENABLED:
