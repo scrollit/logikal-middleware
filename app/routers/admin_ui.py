@@ -1050,10 +1050,10 @@ async def admin_dashboard():
             function showDirectoryManagement() {
                 const modal = new bootstrap.Modal(document.getElementById('directoryManagementModal'));
                 modal.show();
-                loadDirectories();
+                loadDirectoryManagementData();
             }
             
-            async function loadDirectories() {
+            async function loadDirectoryManagementData() {
                 const treeContainer = document.getElementById('directoryTree');
                 
                 try {
