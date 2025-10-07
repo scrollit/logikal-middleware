@@ -17,14 +17,12 @@ router = APIRouter(prefix="/directories", tags=["directories"])
 async def get_cached_directories(db: Session = Depends(get_db)):
     """Get all cached directories from middleware database (no authentication required)"""
     try:
-        directory_service = DirectoryService(db, "", "")  # No API calls needed for this operation
-        enriched_directories = await directory_service.get_directories_with_cascade_info()
+        # Get directories directly from database
+        directories = db.query(Directory).all()
         
         return DirectoryListResponse(
-            data=enriched_directories,
-            count=len(enriched_directories),
-            last_updated=max([dir_obj.get('synced_at') for dir_obj in enriched_directories if dir_obj.get('synced_at')]) if enriched_directories else None,
-            sync_status="cached"
+            data=[DirectoryResponse.from_orm(dir_obj) for dir_obj in directories],
+            count=len(directories)
         )
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

@@ -408,6 +408,19 @@ async def admin_dashboard():
                 <div class="col-md-4 mb-4">
                     <div class="card h-100">
                         <div class="card-body text-center">
+                            <i class="fas fa-folder-tree fa-3x text-warning mb-3"></i>
+                            <h5 class="card-title">Directory Management</h5>
+                            <p class="card-text">Manage directory exclusions for sync operations.</p>
+                            <button onclick="showDirectoryManagement()" class="btn btn-warning">
+                                <i class="fas fa-cogs"></i> Manage Directories
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
                             <i class="fas fa-network-wired fa-3x text-secondary mb-3"></i>
                             <h5 class="card-title">Connection Test</h5>
                             <p class="card-text">Test database and API connections.</p>
@@ -501,6 +514,135 @@ async def admin_dashboard():
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                             <button type="button" class="btn btn-primary" onclick="testConnections()">Retest</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Directory Management Modal -->
+            <div class="modal fade" id="directoryManagementModal" tabindex="-1" aria-labelledby="directoryManagementModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="directoryManagementModalLabel">
+                                <i class="fas fa-folder-tree"></i> Directory Management
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <!-- Search and Filter -->
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h6><i class="fas fa-search"></i> Search & Filter</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-8">
+                                            <label class="form-label">Search Directories</label>
+                                            <input type="text" id="directorySearch" class="form-control" placeholder="Search by name or path...">
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Filter</label>
+                                            <select id="directoryFilter" class="form-select">
+                                                <option value="all">All Directories</option>
+                                                <option value="included">Included Only</option>
+                                                <option value="excluded">Excluded Only</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Directory Tree -->
+                            <div class="card mb-4">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <h6><i class="fas fa-sitemap"></i> Directory Structure</h6>
+                                    <div class="btn-group" role="group">
+                                        <button onclick="selectAllDirectories()" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-check-square"></i> Select All
+                                        </button>
+                                        <button onclick="selectNoneDirectories()" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-square"></i> Select None
+                                        </button>
+                                        <button onclick="selectExcludedDirectories()" class="btn btn-sm btn-outline-warning">
+                                            <i class="fas fa-ban"></i> Select Excluded
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div id="directoryTree" class="table-responsive">
+                                        <div class="text-center">
+                                            <div class="spinner-border" role="status">
+                                                <span class="visually-hidden">Loading directories...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Bulk Actions -->
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h6><i class="fas fa-tasks"></i> Bulk Actions</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <button onclick="bulkExcludeSelected()" class="btn btn-warning w-100">
+                                                <i class="fas fa-ban"></i> Exclude Selected
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <button onclick="bulkIncludeSelected()" class="btn btn-success w-100">
+                                                <i class="fas fa-check"></i> Include Selected
+                                            </button>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <button onclick="saveDirectoryChanges()" class="btn btn-primary w-100">
+                                                <i class="fas fa-save"></i> Save Changes
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3">
+                                        <div id="bulkActionStatus" class="alert alert-info" style="display: none;">
+                                            <i class="fas fa-info-circle"></i> <span id="bulkActionMessage"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Status Summary -->
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6><i class="fas fa-chart-pie"></i> Exclusion Summary</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="directoryStatus" class="row">
+                                        <div class="col-md-3 text-center">
+                                            <div class="h4 text-success" id="includedCount">0</div>
+                                            <small class="text-muted">Included</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <div class="h4 text-warning" id="excludedCount">0</div>
+                                            <small class="text-muted">Excluded</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <div class="h4 text-info" id="totalCount">0</div>
+                                            <small class="text-muted">Total</small>
+                                        </div>
+                                        <div class="col-md-3 text-center">
+                                            <div class="h4 text-primary" id="selectedCount">0</div>
+                                            <small class="text-muted">Selected</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-primary" onclick="saveDirectoryChanges()">
+                                <i class="fas fa-save"></i> Save All Changes
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -898,6 +1040,434 @@ async def admin_dashboard():
                 
                 html += `</div>`;
                 container.innerHTML = html;
+            }
+            
+            // Directory Management Functions
+            let directoriesData = [];
+            let selectedDirectories = new Set();
+            let pendingChanges = new Map();
+            
+            function showDirectoryManagement() {
+                const modal = new bootstrap.Modal(document.getElementById('directoryManagementModal'));
+                modal.show();
+                loadDirectories();
+            }
+            
+            async function loadDirectories() {
+                const treeContainer = document.getElementById('directoryTree');
+                
+                try {
+                    treeContainer.innerHTML = `
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading directories...</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    console.log('Loading directories from /api/v1/directories/cached...');
+                    const response = await fetch('/api/v1/directories/cached');
+                    
+                    console.log('Response status:', response.status);
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('API Error:', errorText);
+                        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+                    }
+                    
+                    const result = await response.json();
+                    console.log('API Response:', result);
+                    
+                    directoriesData = result.data || [];
+                    console.log('Loaded directories:', directoriesData.length);
+                    
+                    renderDirectoryTree();
+                    updateStatusSummary();
+                    
+                } catch (error) {
+                    console.error('Error loading directories:', error);
+                    treeContainer.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle"></i> Failed to load directories: ${error.message}
+                            <br><small>Check browser console for more details.</small>
+                        </div>
+                    `;
+                }
+            }
+            
+            function renderDirectoryTree() {
+                const treeContainer = document.getElementById('directoryTree');
+                const searchTerm = document.getElementById('directorySearch').value.toLowerCase();
+                const filter = document.getElementById('directoryFilter').value;
+                
+                let filteredDirectories = directoriesData;
+                
+                // Apply search filter
+                if (searchTerm) {
+                    filteredDirectories = directoriesData.filter(dir => 
+                        dir.name.toLowerCase().includes(searchTerm) ||
+                        (dir.full_path && dir.full_path.toLowerCase().includes(searchTerm))
+                    );
+                }
+                
+                // Apply status filter
+                if (filter === 'included') {
+                    filteredDirectories = filteredDirectories.filter(dir => !dir.exclude_from_sync);
+                } else if (filter === 'excluded') {
+                    filteredDirectories = filteredDirectories.filter(dir => dir.exclude_from_sync);
+                }
+                
+                if (filteredDirectories.length === 0) {
+                    treeContainer.innerHTML = `
+                        <div class="text-center text-muted">
+                            <i class="fas fa-folder-open fa-2x mb-2"></i>
+                            <p>No directories found matching your criteria.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '<table class="table table-hover">';
+                html += `
+                    <thead>
+                        <tr>
+                            <th width="50px">
+                                <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()">
+                            </th>
+                            <th width="80px">Status</th>
+                            <th>Directory Name</th>
+                            <th>Path</th>
+                            <th width="100px">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                `;
+                
+                // Sort directories by level and name for hierarchical display
+                filteredDirectories.sort((a, b) => {
+                    if (a.level !== b.level) return a.level - b.level;
+                    return a.name.localeCompare(b.name);
+                });
+                
+                filteredDirectories.forEach(dir => {
+                    const isSelected = selectedDirectories.has(dir.id);
+                    const isExcluded = dir.exclude_from_sync;
+                    const hasPendingChange = pendingChanges.has(dir.id);
+                    
+                    html += `
+                        <tr class="${isExcluded ? 'table-warning' : ''} ${hasPendingChange ? 'table-info' : ''}">
+                            <td>
+                                <input type="checkbox" ${isSelected ? 'checked' : ''} 
+                                       onchange="toggleDirectorySelection(${dir.id})">
+                            </td>
+                            <td>
+                                <span class="badge ${isExcluded ? 'bg-warning' : 'bg-success'}">
+                                    ${isExcluded ? 'Excluded' : 'Included'}
+                                </span>
+                            </td>
+                            <td>
+                                <i class="fas fa-folder${isExcluded ? '-open' : ''} me-2"></i>
+                                <strong>${dir.name}</strong>
+                                ${hasPendingChange ? '<i class="fas fa-edit text-info ms-1" title="Pending Changes"></i>' : ''}
+                            </td>
+                            <td>
+                                <small class="text-muted">${dir.full_path || dir.name}</small>
+                            </td>
+                            <td>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" 
+                                           ${isExcluded ? 'checked' : ''}
+                                           onchange="toggleDirectoryExclusion(${dir.id}, this.checked)"
+                                           id="toggle-${dir.id}">
+                                    <label class="form-check-label" for="toggle-${dir.id}">
+                                        ${isExcluded ? 'Excluded' : 'Included'}
+                                    </label>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                treeContainer.innerHTML = html;
+                
+                updateStatusSummary();
+            }
+            
+            function toggleDirectorySelection(directoryId) {
+                if (selectedDirectories.has(directoryId)) {
+                    selectedDirectories.delete(directoryId);
+                } else {
+                    selectedDirectories.add(directoryId);
+                }
+                updateStatusSummary();
+            }
+            
+            function toggleSelectAll() {
+                const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+                const checkboxes = document.querySelectorAll('#directoryTree input[type="checkbox"]:not(#selectAllCheckbox)');
+                
+                checkboxes.forEach(checkbox => {
+                    const directoryId = parseInt(checkbox.onchange.toString().match(/(\d+)/)[1]);
+                    if (selectAllCheckbox.checked) {
+                        selectedDirectories.add(directoryId);
+                        checkbox.checked = true;
+                    } else {
+                        selectedDirectories.delete(directoryId);
+                        checkbox.checked = false;
+                    }
+                });
+                
+                updateStatusSummary();
+            }
+            
+            function toggleDirectoryExclusion(directoryId, exclude) {
+                const directory = directoriesData.find(d => d.id === directoryId);
+                if (!directory) return;
+                
+                // Store pending change
+                pendingChanges.set(directoryId, {
+                    id: directoryId,
+                    exclude: exclude,
+                    original: directory.exclude_from_sync
+                });
+                
+                // Update visual state immediately
+                directory.exclude_from_sync = exclude;
+                renderDirectoryTree();
+                updateStatusSummary();
+            }
+            
+            function updateStatusSummary() {
+                const totalCount = directoriesData.length;
+                const includedCount = directoriesData.filter(d => !d.exclude_from_sync).length;
+                const excludedCount = totalCount - includedCount;
+                const selectedCount = selectedDirectories.size;
+                
+                document.getElementById('totalCount').textContent = totalCount;
+                document.getElementById('includedCount').textContent = includedCount;
+                document.getElementById('excludedCount').textContent = excludedCount;
+                document.getElementById('selectedCount').textContent = selectedCount;
+            }
+            
+            function selectAllDirectories() {
+                selectedDirectories.clear();
+                directoriesData.forEach(dir => selectedDirectories.add(dir.id));
+                renderDirectoryTree();
+            }
+            
+            function selectNoneDirectories() {
+                selectedDirectories.clear();
+                renderDirectoryTree();
+            }
+            
+            function selectExcludedDirectories() {
+                selectedDirectories.clear();
+                directoriesData.filter(dir => dir.exclude_from_sync).forEach(dir => {
+                    selectedDirectories.add(dir.id);
+                });
+                renderDirectoryTree();
+            }
+            
+            async function bulkExcludeSelected() {
+                if (selectedDirectories.size === 0) {
+                    showBulkActionStatus('Please select directories first.', 'warning');
+                    return;
+                }
+                
+                const directoryIds = Array.from(selectedDirectories);
+                
+                try {
+                    showBulkActionStatus('Excluding selected directories...', 'info');
+                    
+                    const response = await fetch('/api/v1/directories/bulk-exclude', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            directory_ids: directoryIds,
+                            exclude: true
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Update local data
+                        directoryIds.forEach(id => {
+                            const directory = directoriesData.find(d => d.id === id);
+                            if (directory) {
+                                directory.exclude_from_sync = true;
+                                pendingChanges.delete(id); // Clear pending change
+                            }
+                        });
+                        
+                        showBulkActionStatus(`Successfully excluded ${result.updated_count || directoryIds.length} directories.`, 'success');
+                        renderDirectoryTree();
+                    } else {
+                        showBulkActionStatus(`Failed to exclude directories: ${result.message}`, 'danger');
+                    }
+                    
+                } catch (error) {
+                    showBulkActionStatus(`Error excluding directories: ${error.message}`, 'danger');
+                }
+            }
+            
+            async function bulkIncludeSelected() {
+                if (selectedDirectories.size === 0) {
+                    showBulkActionStatus('Please select directories first.', 'warning');
+                    return;
+                }
+                
+                const directoryIds = Array.from(selectedDirectories);
+                
+                try {
+                    showBulkActionStatus('Including selected directories...', 'info');
+                    
+                    const response = await fetch('/api/v1/directories/bulk-exclude', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            directory_ids: directoryIds,
+                            exclude: false
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // Update local data
+                        directoryIds.forEach(id => {
+                            const directory = directoriesData.find(d => d.id === id);
+                            if (directory) {
+                                directory.exclude_from_sync = false;
+                                pendingChanges.delete(id); // Clear pending change
+                            }
+                        });
+                        
+                        showBulkActionStatus(`Successfully included ${result.updated_count || directoryIds.length} directories.`, 'success');
+                        renderDirectoryTree();
+                    } else {
+                        showBulkActionStatus(`Failed to include directories: ${result.message}`, 'danger');
+                    }
+                    
+                } catch (error) {
+                    showBulkActionStatus(`Error including directories: ${error.message}`, 'danger');
+                }
+            }
+            
+            async function saveDirectoryChanges() {
+                if (pendingChanges.size === 0) {
+                    showBulkActionStatus('No pending changes to save.', 'info');
+                    return;
+                }
+                
+                try {
+                    showBulkActionStatus('Saving changes...', 'info');
+                    
+                    let successCount = 0;
+                    let errorCount = 0;
+                    
+                    for (const [directoryId, change] of pendingChanges) {
+                        try {
+                            const response = await fetch(`/api/v1/directories/${directoryId}/exclude`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    exclude: change.exclude
+                                })
+                            });
+                            
+                            if (response.ok) {
+                                const result = await response.json();
+                                if (result.success) {
+                                    successCount++;
+                                    // Update local data
+                                    const directory = directoriesData.find(d => d.id === directoryId);
+                                    if (directory) {
+                                        directory.exclude_from_sync = change.exclude;
+                                    }
+                                } else {
+                                    errorCount++;
+                                }
+                            } else {
+                                errorCount++;
+                            }
+                        } catch (error) {
+                            errorCount++;
+                        }
+                    }
+                    
+                    // Clear pending changes
+                    pendingChanges.clear();
+                    
+                    if (errorCount === 0) {
+                        showBulkActionStatus(`Successfully saved ${successCount} changes.`, 'success');
+                    } else {
+                        showBulkActionStatus(`Saved ${successCount} changes, ${errorCount} failed.`, 'warning');
+                    }
+                    
+                    renderDirectoryTree();
+                    
+                } catch (error) {
+                    showBulkActionStatus(`Error saving changes: ${error.message}`, 'danger');
+                }
+            }
+            
+            function showBulkActionStatus(message, type) {
+                const statusDiv = document.getElementById('bulkActionStatus');
+                const messageSpan = document.getElementById('bulkActionMessage');
+                
+                statusDiv.className = `alert alert-${type}`;
+                messageSpan.textContent = message;
+                statusDiv.style.display = 'block';
+                
+                // Auto-hide after 5 seconds for success messages
+                if (type === 'success' || type === 'info') {
+                    setTimeout(() => {
+                        statusDiv.style.display = 'none';
+                    }, 5000);
+                }
+            }
+            
+            // Add event listeners for search and filter
+            document.addEventListener('DOMContentLoaded', function() {
+                const searchInput = document.getElementById('directorySearch');
+                const filterSelect = document.getElementById('directoryFilter');
+                
+                if (searchInput) {
+                    searchInput.addEventListener('input', debounce(renderDirectoryTree, 300));
+                }
+                
+                if (filterSelect) {
+                    filterSelect.addEventListener('change', renderDirectoryTree);
+                }
+            });
+            
+            function debounce(func, wait) {
+                let timeout;
+                return function executedFunction(...args) {
+                    const later = () => {
+                        clearTimeout(timeout);
+                        func(...args);
+                    };
+                    clearTimeout(timeout);
+                    timeout = setTimeout(later, wait);
+                };
             }
             
             // Sync Management Functions
