@@ -373,3 +373,194 @@ class ProjectSyncService:
         except Exception as e:
             logger.error(f"Failed to get projects: {str(e)}")
             return []
+
+    async def force_sync_project_from_logikal(self, project_id: str, directory_id: Optional[str], 
+                                            base_url: str, username: str, password: str) -> Dict:
+        """
+        Force sync a specific project from Logikal API for Odoo integration
+        """
+        sync_start_time = time.time()
+        sync_log = None
+        
+        try:
+            # Create sync log entry
+            sync_log = SyncLog(
+                sync_type='project_force',
+                status='started',
+                message=f'Force sync project {project_id} from Logikal started',
+                started_at=datetime.utcnow()
+            )
+            self.db.add(sync_log)
+            self.db.commit()
+            
+            logger.info(f"Starting force sync for project: {project_id}")
+            
+            # Find the directory if provided
+            directory = None
+            if directory_id:
+                directory = self.db.query(Directory).filter(Directory.logikal_id == directory_id).first()
+                if not directory:
+                    raise Exception(f"Directory with ID {directory_id} not found")
+            
+            # Create dedicated session for this project
+            success, token = await self.auth_service.authenticate(base_url, username, password)
+            
+            if not success:
+                raise Exception(f"Authentication failed: {token}")
+            
+            # Navigate to directory if specified
+            if directory and directory.full_path:
+                directory_service = DirectoryService(self.db, token, base_url)
+                success, message = await directory_service.navigate_to_directory(directory.full_path)
+                
+                if not success:
+                    raise Exception(f"Failed to navigate to directory {directory.name}: {message}")
+            
+            # Get project details from Logikal API
+            project_service = ProjectService(self.db, token, base_url)
+            success, project_data, message = await project_service.get_project_details(project_id)
+            
+            if not success:
+                raise Exception(f"Failed to get project details for {project_id}: {message}")
+            
+            # Sync the project data to database
+            phases_synced = 0
+            elevations_synced = 0
+            
+            # Create or update project record
+            project = self.db.query(Project).filter(Project.logikal_id == project_id).first()
+            if not project:
+                project = Project(
+                    logikal_id=project_id,
+                    name=project_data.get('name', ''),
+                    description=project_data.get('description', ''),
+                    directory_id=directory.id if directory else None,
+                    sync_status='synced',
+                    synced_at=datetime.utcnow()
+                )
+                self.db.add(project)
+                self.db.commit()
+                logger.info(f"Created new project: {project.name}")
+            else:
+                project.name = project_data.get('name', project.name)
+                project.description = project_data.get('description', project.description)
+                project.sync_status = 'synced'
+                project.synced_at = datetime.utcnow()
+                self.db.commit()
+                logger.info(f"Updated existing project: {project.name}")
+            
+            duration = time.time() - sync_start_time
+            
+            # Update sync log
+            if sync_log:
+                sync_log.status = 'completed'
+                sync_log.message = f'Force sync project {project_id} completed successfully'
+                sync_log.completed_at = datetime.utcnow()
+                sync_log.duration_seconds = duration
+                self.db.commit()
+            
+            return {
+                'success': True,
+                'message': f'Project {project.name} synced successfully',
+                'project_id': project_id,
+                'phases_synced': phases_synced,
+                'elevations_synced': elevations_synced,
+                'duration_seconds': duration
+            }
+            
+        except Exception as e:
+            duration = time.time() - sync_start_time
+            error_msg = f"Force sync project {project_id} failed: {str(e)}"
+            logger.error(error_msg)
+            
+            # Update sync log with error
+            if sync_log:
+                sync_log.status = 'failed'
+                sync_log.message = error_msg
+                sync_log.completed_at = datetime.utcnow()
+                sync_log.duration_seconds = duration
+                self.db.commit()
+            
+            return {
+                'success': False,
+                'message': error_msg,
+                'project_id': project_id,
+                'phases_synced': 0,
+                'elevations_synced': 0,
+                'duration_seconds': duration
+            }
+
+    async def force_sync_projects_for_directory(self, directory_id: str, base_url: str, 
+                                              username: str, password: str) -> Dict:
+        """
+        Force sync all projects in a specific directory from Logikal API for Odoo integration
+        """
+        sync_start_time = time.time()
+        sync_log = None
+        
+        try:
+            # Create sync log entry
+            sync_log = SyncLog(
+                sync_type='directory_projects_force',
+                status='started',
+                message=f'Force sync projects for directory {directory_id} started',
+                started_at=datetime.utcnow()
+            )
+            self.db.add(sync_log)
+            self.db.commit()
+            
+            logger.info(f"Starting force sync for projects in directory: {directory_id}")
+            
+            # Find the directory
+            directory = self.db.query(Directory).filter(Directory.logikal_id == directory_id).first()
+            if not directory:
+                raise Exception(f"Directory with ID {directory_id} not found")
+            
+            # Use the existing sync_projects_for_directory method
+            result = await self.sync_projects_for_directory(
+                self.db, base_url, username, password, directory
+            )
+            
+            duration = time.time() - sync_start_time
+            
+            # Update sync log
+            if sync_log:
+                sync_log.status = 'completed' if result['success'] else 'failed'
+                sync_log.message = result.get('message', 'Force sync directory projects completed')
+                sync_log.completed_at = datetime.utcnow()
+                sync_log.duration_seconds = duration
+                self.db.commit()
+            
+            # Return simplified result for Odoo integration
+            return {
+                'success': result['success'],
+                'message': result.get('message', 'Force sync directory projects completed'),
+                'directory_id': directory_id,
+                'projects_synced': result.get('count', 0),
+                'phases_synced': result.get('phases_synced', 0),
+                'elevations_synced': result.get('elevations_synced', 0),
+                'duration_seconds': duration
+            }
+            
+        except Exception as e:
+            duration = time.time() - sync_start_time
+            error_msg = f"Force sync projects for directory {directory_id} failed: {str(e)}"
+            logger.error(error_msg)
+            
+            # Update sync log with error
+            if sync_log:
+                sync_log.status = 'failed'
+                sync_log.message = error_msg
+                sync_log.completed_at = datetime.utcnow()
+                sync_log.duration_seconds = duration
+                self.db.commit()
+            
+            return {
+                'success': False,
+                'message': error_msg,
+                'directory_id': directory_id,
+                'projects_synced': 0,
+                'phases_synced': 0,
+                'elevations_synced': 0,
+                'duration_seconds': duration
+            }

@@ -7,7 +7,7 @@ from core.logging import setup_logging, LoggingMiddleware
 from core.security_production import setup_security_middleware
 from monitoring.prometheus import setup_prometheus_metrics
 from monitoring.health import router as health_router
-from routers import auth_router, directories_router, projects_router, elevations_router, phases_router, sync_router, client_auth, odoo, sync_status, scheduler, advanced_sync, admin_auth
+from routers import auth_router, directories_router, projects_router, elevations_router, phases_router, sync_router, client_auth, odoo, sync_status, scheduler, advanced_sync, admin_auth, sync_intervals, forced_sync
 from routers.admin_ui import router as admin_ui_router
 import logging
 import os
@@ -48,6 +48,8 @@ app.include_router(sync_status.router, prefix=settings.API_V1_STR)
 app.include_router(scheduler.router, prefix=settings.API_V1_STR)
 app.include_router(advanced_sync.router, prefix=settings.API_V1_STR)
 app.include_router(admin_auth.router, prefix=settings.API_V1_STR)
+app.include_router(sync_intervals.router)
+app.include_router(forced_sync.router, prefix=settings.API_V1_STR)
 app.include_router(admin_ui_router)
 app.include_router(health_router, prefix=settings.API_V1_STR)
 

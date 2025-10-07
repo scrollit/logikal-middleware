@@ -37,12 +37,11 @@ celery_app.conf.update(
     },
     # Periodic task settings
     beat_schedule={
-        # Disabled scheduled sync - syncs should be triggered manually only
-        # "hourly-smart-sync": {
-        #     "task": "tasks.scheduler_tasks.hourly_smart_sync",
-        #     "schedule": 3600.0,  # Every hour
-        #     "options": {"queue": "scheduler"}
-        # },
+        "smart-sync-scheduler": {
+            "task": "tasks.scheduler_tasks.smart_sync_scheduler",
+            "schedule": 300.0,  # Every 5 minutes - checks admin panel intervals
+            "options": {"queue": "scheduler"}
+        },
     },
     beat_schedule_filename="/tmp/celerybeat-schedule",
     # Monitoring

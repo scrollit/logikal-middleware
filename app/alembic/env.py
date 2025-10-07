@@ -21,7 +21,7 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from core.database import Base
-from models import Directory, Session, ApiLog, Project, Elevation, Phase, SyncConfig, SyncLog
+from models import Directory, Session, ApiLog, Project, Elevation, Phase, SyncConfig, SyncLog, ObjectSyncConfig
 
 target_metadata = Base.metadata
 

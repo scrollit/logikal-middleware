@@ -27,6 +27,8 @@ services:
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=admin123
       - ADMIN_SESSION_EXPIRE_HOURS=8
+      - BACKGROUND_SYNC_ENABLED=true
+      - SYNC_INTERVAL_SECONDS=300
     depends_on:
       - db
       - redis
@@ -63,6 +65,8 @@ services:
       - redis
     environment:
       - C_FORCE_ROOT=1
+      - BACKGROUND_SYNC_ENABLED=true
+      - SYNC_INTERVAL_SECONDS=300
 
   celery-beat:
     container_name: logikal-celery-beat
@@ -77,6 +81,8 @@ services:
       - redis
     environment:
       - C_FORCE_ROOT=1
+      - BACKGROUND_SYNC_ENABLED=true
+      - SYNC_INTERVAL_SECONDS=300
 
   flower:
     container_name: logikal-flower

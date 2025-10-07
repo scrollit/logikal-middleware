@@ -585,3 +585,65 @@ class DirectorySyncService:
         except Exception as e:
             logger.error(f"Failed to get syncable directories: {str(e)}")
             return []
+
+    async def sync_directories_from_logikal(self, base_url: str, username: str, password: str) -> Dict:
+        """
+        Force sync directories from Logikal API for Odoo integration
+        This method provides a simplified interface for forced directory sync
+        """
+        sync_start_time = time.time()
+        sync_log = None
+        
+        try:
+            # Create sync log entry
+            sync_log = SyncLog(
+                sync_type='directory_force',
+                status='started',
+                message='Force sync directories from Logikal started',
+                started_at=datetime.utcnow()
+            )
+            self.db.add(sync_log)
+            self.db.commit()
+            
+            logger.info("Starting force sync directories from Logikal")
+            
+            # Use the existing discover_and_sync_directories method
+            result = await self.discover_and_sync_directories(base_url, username, password)
+            
+            duration = time.time() - sync_start_time
+            
+            # Update sync log
+            if sync_log:
+                sync_log.status = 'completed' if result['success'] else 'failed'
+                sync_log.message = result.get('message', 'Force sync completed')
+                sync_log.completed_at = datetime.utcnow()
+                sync_log.duration_seconds = duration
+                self.db.commit()
+            
+            # Return simplified result for Odoo integration
+            return {
+                'success': result['success'],
+                'message': result.get('message', 'Force sync directories completed'),
+                'directories_processed': result.get('directories_processed', 0),
+                'duration_seconds': duration
+            }
+            
+        except Exception as e:
+            duration = time.time() - sync_start_time
+            error_msg = f"Force sync directories failed: {str(e)}"
+            logger.error(error_msg)
+            
+            # Update sync log with error
+            if sync_log:
+                sync_log.status = 'failed'
+                sync_log.message = error_msg
+                sync_log.completed_at = datetime.utcnow()
+                sync_log.duration_seconds = duration
+                self.db.commit()
+            
+            return {
+                'success': False,
+                'message': error_msg,
+                'directories_processed': 0,
+                'duration_seconds': duration
+            }

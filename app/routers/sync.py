@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Query
 from sqlalchemy.orm import Session
-from typing import Dict
+from typing import Dict, Optional
 from core.database import get_db
 from services.sync_service import SyncService
 from services.parts_list_sync_service import PartsListSyncService
+from services.directory_sync_service import DirectorySyncService
+from services.project_sync_service import ProjectSyncService
 from schemas.sync import SyncRequest, SyncResponse, SyncStatusResponse
 
 router = APIRouter(prefix="/sync", tags=["sync"])

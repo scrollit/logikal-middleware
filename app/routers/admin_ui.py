@@ -316,6 +316,12 @@ async def admin_dashboard():
                     <i class="fas fa-cogs"></i> Logikal Middleware Admin
                 </a>
                 <div class="navbar-nav ms-auto">
+                    <a class="nav-link" href="/admin/sync-intervals">
+                        <i class="fas fa-clock"></i> Sync Intervals
+                    </a>
+                    <a class="nav-link" href="/admin/sync-logs">
+                        <i class="fas fa-list-alt"></i> Sync Logs
+                    </a>
                     <div class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-user-shield"></i> <span id="adminUsername">Admin</span>
@@ -4944,6 +4950,1306 @@ async def admin_stats_ui(request: Request):
     """
     
     return HTMLResponse(content=stats_html, status_code=200)
+
+
+@router.get("/sync-intervals", response_class=HTMLResponse)
+async def admin_sync_intervals_ui():
+    """Admin sync intervals configuration interface"""
+    sync_intervals_html = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Sync Intervals - Logikal Middleware Admin</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <style>
+            .config-card {
+                transition: all 0.3s ease;
+            }
+            .config-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            }
+            .sync-status {
+                display: inline-block;
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                margin-right: 8px;
+            }
+            .status-enabled { background-color: #28a745; }
+            .status-disabled { background-color: #dc3545; }
+            .status-stale { background-color: #ffc107; }
+            .priority-badge {
+                font-size: 0.75em;
+                padding: 0.25em 0.5em;
+            }
+            .interval-display {
+                font-family: 'Courier New', monospace;
+                font-weight: bold;
+                color: #495057;
+            }
+            .dependency-list {
+                font-size: 0.875em;
+                color: #6c757d;
+            }
+            .btn-toggle {
+                min-width: 80px;
+            }
+            .summary-card {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+            }
+            .summary-card .card-body {
+                padding: 1.5rem;
+            }
+            .summary-stat {
+                text-align: center;
+                padding: 1rem;
+            }
+            .summary-stat .number {
+                font-size: 2rem;
+                font-weight: bold;
+                margin-bottom: 0.5rem;
+            }
+            .summary-stat .label {
+                font-size: 0.875rem;
+                opacity: 0.9;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Navigation Bar -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/admin">
+                    <i class="fas fa-cogs"></i> Logikal Middleware Admin
+                </a>
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link" href="/admin/sync-intervals">
+                        <i class="fas fa-clock"></i> Sync Intervals
+                    </a>
+                    <a class="nav-link" href="/admin/sync-logs">
+                        <i class="fas fa-list-alt"></i> Sync Logs
+                    </a>
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-shield"></i> <span id="adminUsername">Admin</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="container mt-4">
+            <!-- Header -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-clock"></i> Sync Intervals Configuration</h1>
+                    <p class="text-muted">Configure sync intervals and settings for different object types</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-primary" onclick="showAddConfigModal()">
+                        <i class="fas fa-plus"></i> Add Configuration
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="resetAllConfigs()">
+                        <i class="fas fa-undo"></i> Reset to Defaults
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Summary Cards -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card summary-card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3 summary-stat">
+                                    <div class="number" id="totalConfigs">-</div>
+                                    <div class="label">Total Configurations</div>
+                                </div>
+                                <div class="col-md-3 summary-stat">
+                                    <div class="number" id="enabledConfigs">-</div>
+                                    <div class="label">Enabled</div>
+                                </div>
+                                <div class="col-md-3 summary-stat">
+                                    <div class="number" id="staleConfigs">-</div>
+                                    <div class="label">Stale Data</div>
+                                </div>
+                                <div class="col-md-3 summary-stat">
+                                    <div class="number" id="nextSyncTime">-</div>
+                                    <div class="label">Next Sync</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Configuration List -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div id="configsContainer">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading sync configurations...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Edit Configuration Modal -->
+        <div class="modal fade" id="editConfigModal" tabindex="-1" aria-labelledby="editConfigModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editConfigModalLabel">
+                            <i class="fas fa-cog"></i> Edit Sync Configuration
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editConfigForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="editDisplayName" class="form-label">Display Name</label>
+                                        <input type="text" class="form-control" id="editDisplayName" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="editObjectType" class="form-label">Object Type</label>
+                                        <input type="text" class="form-control" id="editObjectType" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="editDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="editDescription" rows="2"></textarea>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="editSyncInterval" class="form-label">Sync Interval (minutes)</label>
+                                        <input type="number" class="form-control" id="editSyncInterval" min="1" max="10080" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="editStalenessThreshold" class="form-label">Staleness Threshold (minutes)</label>
+                                        <input type="number" class="form-control" id="editStalenessThreshold" min="1" max="10080" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="editPriority" class="form-label">Priority</label>
+                                        <select class="form-select" id="editPriority" required>
+                                            <option value="1">1 - Highest</option>
+                                            <option value="2">2 - High</option>
+                                            <option value="3">3 - Medium</option>
+                                            <option value="4">4 - Low</option>
+                                            <option value="5">5 - Lowest</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="editBatchSize" class="form-label">Batch Size</label>
+                                        <input type="number" class="form-control" id="editBatchSize" min="1" max="1000" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="editMaxRetries" class="form-label">Max Retry Attempts</label>
+                                        <input type="number" class="form-control" id="editMaxRetries" min="1" max="10" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="editRetryDelay" class="form-label">Retry Delay (minutes)</label>
+                                        <input type="number" class="form-control" id="editRetryDelay" min="1" max="60" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="editDependsOn" class="form-label">Dependencies (comma-separated)</label>
+                                <input type="text" class="form-control" id="editDependsOn" placeholder="e.g., directory, project">
+                                <div class="form-text">Object types that must be synced before this one</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="editCascadeSync">
+                                    <label class="form-check-label" for="editCascadeSync">
+                                        Cascade Sync
+                                    </label>
+                                </div>
+                                <div class="form-text">Automatically sync dependent objects when this object is synced</div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="saveConfigChanges()">
+                            <i class="fas fa-save"></i> Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Add Configuration Modal -->
+        <div class="modal fade" id="addConfigModal" tabindex="-1" aria-labelledby="addConfigModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addConfigModalLabel">
+                            <i class="fas fa-plus"></i> Add Sync Configuration
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addConfigForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="addObjectType" class="form-label">Object Type</label>
+                                        <input type="text" class="form-control" id="addObjectType" required placeholder="e.g., custom_object">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="addDisplayName" class="form-label">Display Name</label>
+                                        <input type="text" class="form-control" id="addDisplayName" required placeholder="e.g., Custom Objects">
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="addDescription" class="form-label">Description</label>
+                                <textarea class="form-control" id="addDescription" rows="2" placeholder="Description of what this object type represents"></textarea>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="addSyncInterval" class="form-label">Sync Interval (minutes)</label>
+                                        <input type="number" class="form-control" id="addSyncInterval" value="60" min="1" max="10080" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="addStalenessThreshold" class="form-label">Staleness Threshold (minutes)</label>
+                                        <input type="number" class="form-control" id="addStalenessThreshold" value="120" min="1" max="10080" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="addPriority" class="form-label">Priority</label>
+                                        <select class="form-select" id="addPriority" required>
+                                            <option value="1">1 - Highest</option>
+                                            <option value="2">2 - High</option>
+                                            <option value="3" selected>3 - Medium</option>
+                                            <option value="4">4 - Low</option>
+                                            <option value="5">5 - Lowest</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="addBatchSize" class="form-label">Batch Size</label>
+                                        <input type="number" class="form-control" id="addBatchSize" value="100" min="1" max="1000" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="addMaxRetries" class="form-label">Max Retry Attempts</label>
+                                        <input type="number" class="form-control" id="addMaxRetries" value="3" min="1" max="10" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="addRetryDelay" class="form-label">Retry Delay (minutes)</label>
+                                        <input type="number" class="form-control" id="addRetryDelay" value="5" min="1" max="60" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="addDependsOn" class="form-label">Dependencies (comma-separated)</label>
+                                <input type="text" class="form-control" id="addDependsOn" placeholder="e.g., directory, project">
+                                <div class="form-text">Object types that must be synced before this one</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="addCascadeSync" checked>
+                                    <label class="form-check-label" for="addCascadeSync">
+                                        Cascade Sync
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="addSyncEnabled" checked>
+                                    <label class="form-check-label" for="addSyncEnabled">
+                                        Enable Sync
+                                    </label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="createNewConfig()">
+                            <i class="fas fa-plus"></i> Create Configuration
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alert Container -->
+        <div id="alertContainer" style="position: fixed; top: 20px; right: 20px; z-index: 1050;"></div>
+        
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            let syncConfigs = [];
+            let currentEditingConfig = null;
+            
+            // Load configurations on page load
+            document.addEventListener('DOMContentLoaded', function() {
+                loadSyncConfigs();
+                setInterval(loadSyncConfigs, 30000); // Refresh every 30 seconds
+            });
+            
+            async function loadSyncConfigs() {
+                try {
+                    const response = await fetch('/api/v1/admin/sync-intervals/');
+                    const configs = await response.json();
+                    
+                    syncConfigs = configs;
+                    renderConfigs(configs);
+                    updateSummary(configs);
+                    
+                } catch (error) {
+                    console.error('Error loading sync configurations:', error);
+                    showAlert('Failed to load sync configurations: ' + error.message, 'danger');
+                }
+            }
+            
+            function renderConfigs(configs) {
+                const container = document.getElementById('configsContainer');
+                
+                if (configs.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-5">
+                            <i class="fas fa-clock fa-3x text-muted mb-3"></i>
+                            <h4 class="text-muted">No Sync Configurations</h4>
+                            <p class="text-muted">Create your first sync configuration to get started.</p>
+                            <button class="btn btn-primary" onclick="showAddConfigModal()">
+                                <i class="fas fa-plus"></i> Add Configuration
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '<div class="row">';
+                
+                configs.forEach(config => {
+                    const statusClass = config.is_sync_enabled ? 'status-enabled' : 'status-disabled';
+                    const priorityClass = `bg-${getPriorityColor(config.priority)}`;
+                    const intervalText = formatInterval(config.sync_interval_minutes);
+                    const lastSyncText = config.last_sync ? formatDateTime(config.last_sync) : 'Never';
+                    const nextSyncText = formatDateTime(config.next_sync_time);
+                    const dependenciesText = config.depends_on.length > 0 ? config.depends_on.join(', ') : 'None';
+                    
+                    html += `
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card config-card h-100">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">
+                                            <span class="sync-status ${statusClass}"></span>
+                                            ${config.display_name}
+                                        </h6>
+                                        <small class="text-muted">${config.object_type}</small>
+                                    </div>
+                                    <div>
+                                        <span class="badge ${priorityClass} priority-badge">P${config.priority}</span>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    ${config.description ? `<p class="text-muted small mb-3">${config.description}</p>` : ''}
+                                    
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">Interval:</span>
+                                            <span class="interval-display">${intervalText}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">Batch Size:</span>
+                                            <span>${config.batch_size}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">Max Retries:</span>
+                                            <span>${config.max_retry_attempts}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">Last Sync:</span>
+                                            <span class="small">${lastSyncText}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span class="text-muted">Next Sync:</span>
+                                            <span class="small">${nextSyncText}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="dependency-list">
+                                            <strong>Dependencies:</strong> ${dependenciesText}
+                                        </div>
+                                        <div class="dependency-list">
+                                            <strong>Cascade Sync:</strong> ${config.cascade_sync ? 'Yes' : 'No'}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <div class="d-flex justify-content-between">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="editConfig('${config.object_type}')">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-toggle ${config.is_sync_enabled ? 'btn-warning' : 'btn-success'}" 
+                                                onclick="toggleSync('${config.object_type}', ${config.is_sync_enabled})">
+                                            <i class="fas fa-${config.is_sync_enabled ? 'pause' : 'play'}"></i>
+                                            ${config.is_sync_enabled ? 'Disable' : 'Enable'}
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-info" onclick="triggerSync('${config.object_type}')">
+                                            <i class="fas fa-sync"></i> Sync Now
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                container.innerHTML = html;
+            }
+            
+            function updateSummary(configs) {
+                const totalConfigs = configs.length;
+                const enabledConfigs = configs.filter(c => c.is_sync_enabled).length;
+                const staleConfigs = configs.filter(c => c.is_stale).length;
+                
+                // Find next sync time
+                const enabledConfigsWithNextSync = configs.filter(c => c.is_sync_enabled && c.next_sync_time);
+                const nextSyncTimes = enabledConfigsWithNextSync.map(c => new Date(c.next_sync_time));
+                const nextSyncTime = nextSyncTimes.length > 0 ? 
+                    new Date(Math.min(...nextSyncTimes)) : null;
+                
+                document.getElementById('totalConfigs').textContent = totalConfigs;
+                document.getElementById('enabledConfigs').textContent = enabledConfigs;
+                document.getElementById('staleConfigs').textContent = staleConfigs;
+                document.getElementById('nextSyncTime').textContent = nextSyncTime ? 
+                    formatDateTime(nextSyncTime.toISOString()) : 'None';
+            }
+            
+            function getPriorityColor(priority) {
+                switch(priority) {
+                    case 1: return 'danger';
+                    case 2: return 'warning';
+                    case 3: return 'info';
+                    case 4: return 'secondary';
+                    case 5: return 'light';
+                    default: return 'secondary';
+                }
+            }
+            
+            function formatInterval(minutes) {
+                if (minutes < 60) {
+                    return `${minutes}m`;
+                } else if (minutes < 1440) {
+                    return `${Math.round(minutes / 60)}h`;
+                } else {
+                    return `${Math.round(minutes / 1440)}d`;
+                }
+            }
+            
+            function formatDateTime(dateString) {
+                const date = new Date(dateString);
+                const now = new Date();
+                const diffMs = date.getTime() - now.getTime();
+                const diffMinutes = Math.round(diffMs / (1000 * 60));
+                
+                if (diffMinutes < 1) {
+                    return 'Now';
+                } else if (diffMinutes < 60) {
+                    return `in ${diffMinutes}m`;
+                } else if (diffMinutes < 1440) {
+                    return `in ${Math.round(diffMinutes / 60)}h`;
+                } else {
+                    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                }
+            }
+            
+            function editConfig(objectType) {
+                const config = syncConfigs.find(c => c.object_type === objectType);
+                if (!config) return;
+                
+                currentEditingConfig = config;
+                
+                // Populate form
+                document.getElementById('editObjectType').value = config.object_type;
+                document.getElementById('editDisplayName').value = config.display_name;
+                document.getElementById('editDescription').value = config.description || '';
+                document.getElementById('editSyncInterval').value = config.sync_interval_minutes;
+                document.getElementById('editStalenessThreshold').value = config.staleness_threshold_minutes;
+                document.getElementById('editPriority').value = config.priority;
+                document.getElementById('editBatchSize').value = config.batch_size;
+                document.getElementById('editMaxRetries').value = config.max_retry_attempts;
+                document.getElementById('editRetryDelay').value = config.retry_delay_minutes;
+                document.getElementById('editDependsOn').value = config.depends_on.join(', ');
+                document.getElementById('editCascadeSync').checked = config.cascade_sync;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('editConfigModal'));
+                modal.show();
+            }
+            
+            async function saveConfigChanges() {
+                if (!currentEditingConfig) return;
+                
+                const formData = {
+                    display_name: document.getElementById('editDisplayName').value,
+                    description: document.getElementById('editDescription').value,
+                    sync_interval_minutes: parseInt(document.getElementById('editSyncInterval').value),
+                    staleness_threshold_minutes: parseInt(document.getElementById('editStalenessThreshold').value),
+                    priority: parseInt(document.getElementById('editPriority').value),
+                    batch_size: parseInt(document.getElementById('editBatchSize').value),
+                    max_retry_attempts: parseInt(document.getElementById('editMaxRetries').value),
+                    retry_delay_minutes: parseInt(document.getElementById('editRetryDelay').value),
+                    depends_on: document.getElementById('editDependsOn').value.split(',').map(s => s.trim()).filter(s => s),
+                    cascade_sync: document.getElementById('editCascadeSync').checked
+                };
+                
+                try {
+                    const response = await fetch(`/api/v1/admin/sync-intervals/${currentEditingConfig.object_type}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    if (response.ok) {
+                        showAlert('Configuration updated successfully', 'success');
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('editConfigModal'));
+                        modal.hide();
+                        loadSyncConfigs();
+                    } else {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Failed to update configuration');
+                    }
+                } catch (error) {
+                    showAlert('Failed to update configuration: ' + error.message, 'danger');
+                }
+            }
+            
+            function showAddConfigModal() {
+                // Clear form
+                document.getElementById('addConfigForm').reset();
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('addConfigModal'));
+                modal.show();
+            }
+            
+            async function createNewConfig() {
+                const formData = {
+                    object_type: document.getElementById('addObjectType').value,
+                    display_name: document.getElementById('addDisplayName').value,
+                    description: document.getElementById('addDescription').value,
+                    sync_interval_minutes: parseInt(document.getElementById('addSyncInterval').value),
+                    staleness_threshold_minutes: parseInt(document.getElementById('addStalenessThreshold').value),
+                    priority: parseInt(document.getElementById('addPriority').value),
+                    batch_size: parseInt(document.getElementById('addBatchSize').value),
+                    max_retry_attempts: parseInt(document.getElementById('addMaxRetries').value),
+                    retry_delay_minutes: parseInt(document.getElementById('addRetryDelay').value),
+                    depends_on: document.getElementById('addDependsOn').value.split(',').map(s => s.trim()).filter(s => s),
+                    cascade_sync: document.getElementById('addCascadeSync').checked,
+                    is_sync_enabled: document.getElementById('addSyncEnabled').checked
+                };
+                
+                try {
+                    const response = await fetch('/api/v1/admin/sync-intervals/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    if (response.ok) {
+                        showAlert('Configuration created successfully', 'success');
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('addConfigModal'));
+                        modal.hide();
+                        loadSyncConfigs();
+                    } else {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Failed to create configuration');
+                    }
+                } catch (error) {
+                    showAlert('Failed to create configuration: ' + error.message, 'danger');
+                }
+            }
+            
+            async function toggleSync(objectType, currentStatus) {
+                try {
+                    const response = await fetch(`/api/v1/admin/sync-intervals/${objectType}/toggle`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        showAlert(result.message, 'success');
+                        loadSyncConfigs();
+                    } else {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Failed to toggle sync status');
+                    }
+                } catch (error) {
+                    showAlert('Failed to toggle sync status: ' + error.message, 'danger');
+                }
+            }
+            
+            async function triggerSync(objectType) {
+                try {
+                    const response = await fetch(`/api/v1/admin/sync-intervals/${objectType}/sync`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        showAlert(result.message, 'success');
+                        loadSyncConfigs();
+                    } else {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Failed to trigger sync');
+                    }
+                } catch (error) {
+                    showAlert('Failed to trigger sync: ' + error.message, 'danger');
+                }
+            }
+            
+            async function resetAllConfigs() {
+                if (!confirm('Are you sure you want to reset all configurations to defaults? This will delete all custom configurations.')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/api/v1/admin/sync-intervals/reset', {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        showAlert(result.message, 'success');
+                        loadSyncConfigs();
+                    } else {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Failed to reset configurations');
+                    }
+                } catch (error) {
+                    showAlert('Failed to reset configurations: ' + error.message, 'danger');
+                }
+            }
+            
+            function showAlert(message, type) {
+                const alertContainer = document.getElementById('alertContainer');
+                const alertId = 'alert-' + Date.now();
+                
+                const alertHtml = `
+                    <div id="${alertId}" class="alert alert-${type} alert-dismissible fade show" role="alert">
+                        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                        ${message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                `;
+                
+                alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+                
+                // Auto-remove after 5 seconds
+                setTimeout(() => {
+                    const alertElement = document.getElementById(alertId);
+                    if (alertElement) {
+                        alertElement.remove();
+                    }
+                }, 5000);
+            }
+            
+            function logout() {
+                if (confirm('Are you sure you want to logout?')) {
+                    window.location.href = '/admin/login';
+                }
+            }
+        </script>
+    </body>
+    </html>
+    """
+    
+    return HTMLResponse(content=sync_intervals_html, status_code=200)
+
+
+@router.get("/sync-logs", response_class=HTMLResponse)
+async def admin_sync_logs_ui(request: Request):
+    """Admin sync logs monitoring interface"""
+    sync_logs_html = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Sync Logs - Logikal Middleware Admin</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <style>
+            .log-entry {
+                transition: all 0.3s ease;
+            }
+            .log-entry:hover {
+                background-color: #f8f9fa;
+            }
+            .status-badge {
+                font-size: 0.8em;
+            }
+            .log-details {
+                font-family: 'Courier New', monospace;
+                font-size: 0.9em;
+            }
+            .refresh-btn {
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                z-index: 1000;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Navigation Bar -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/admin">
+                    <i class="fas fa-cogs"></i> Logikal Middleware Admin
+                </a>
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link" href="/admin/sync-intervals">
+                        <i class="fas fa-clock"></i> Sync Intervals
+                    </a>
+                    <a class="nav-link" href="/admin/sync-logs">
+                        <i class="fas fa-list-alt"></i> Sync Logs
+                    </a>
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-shield"></i> <span id="adminUsername">Admin</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i> Logout
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        
+        <div class="container mt-4">
+            <!-- Header -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-list-alt"></i> Sync Logs</h1>
+                    <p class="text-muted">Monitor and analyze sync operations and their performance</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-primary" onclick="refreshLogs()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                    <button class="btn btn-outline-secondary" onclick="exportLogs()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-filter"></i> Filters</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <label for="statusFilter" class="form-label">Status</label>
+                                    <select id="statusFilter" class="form-select" onchange="filterLogs()">
+                                        <option value="">All Statuses</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="failed">Failed</option>
+                                        <option value="started">Started</option>
+                                        <option value="cancelled">Cancelled</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="typeFilter" class="form-label">Sync Type</label>
+                                    <select id="typeFilter" class="form-select" onchange="filterLogs()">
+                                        <option value="">All Types</option>
+                                        <option value="full">Full Sync</option>
+                                        <option value="incremental">Incremental</option>
+                                        <option value="directory">Directory</option>
+                                        <option value="project">Project</option>
+                                        <option value="phase">Phase</option>
+                                        <option value="elevation">Elevation</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="dateFilter" class="form-label">Date Range</label>
+                                    <select id="dateFilter" class="form-select" onchange="filterLogs()">
+                                        <option value="1">Last Hour</option>
+                                        <option value="24" selected>Last 24 Hours</option>
+                                        <option value="168">Last Week</option>
+                                        <option value="720">Last Month</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">&nbsp;</label>
+                                    <div>
+                                        <button class="btn btn-outline-secondary" onclick="clearFilters()">
+                                            <i class="fas fa-times"></i> Clear
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Completed</h6>
+                                    <h4 id="completedCount">0</h4>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-check-circle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Failed</h6>
+                                    <h4 id="failedCount">0</h4>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-times-circle fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Total Items</h6>
+                                    <h4 id="totalItems">0</h4>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-list fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="card-title">Avg Duration</h6>
+                                    <h4 id="avgDuration">0s</h4>
+                                </div>
+                                <div class="align-self-center">
+                                    <i class="fas fa-clock fa-2x"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sync Logs Table -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-list"></i> Sync Logs</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="syncLogsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Items</th>
+                                            <th>Duration</th>
+                                            <th>Started</th>
+                                            <th>Completed</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="syncLogsTableBody">
+                                        <tr>
+                                            <td colspan="8" class="text-center">
+                                                <div class="spinner-border" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                                Loading sync logs...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Details Modal -->
+        <div class="modal fade" id="logDetailsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Sync Log Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="logDetailsContent">
+                        <!-- Log details will be populated here -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Floating Refresh Button -->
+        <button class="btn btn-primary rounded-circle refresh-btn" onclick="refreshLogs()" title="Refresh Logs">
+            <i class="fas fa-sync"></i>
+        </button>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            let allLogs = [];
+            let filteredLogs = [];
+
+            // Load sync logs on page load
+            document.addEventListener('DOMContentLoaded', function() {
+                loadSyncLogs();
+                
+                // Auto-refresh every 30 seconds
+                setInterval(refreshLogs, 30000);
+            });
+
+            async function loadSyncLogs() {
+                try {
+                    console.log('Loading sync logs...');
+                    showLoading();
+                    
+                    const response = await fetch('/api/v1/sync/status');
+                    console.log('Response status:', response.status);
+                    console.log('Response ok:', response.ok);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('Response data:', data);
+                    
+                    if (data.success && data.recent_logs) {
+                        allLogs = data.recent_logs;
+                        console.log('Loaded logs count:', allLogs.length);
+                        filterLogs();
+                        updateStatistics();
+                    } else {
+                        console.error('Invalid response format:', data);
+                        showError('Failed to load sync logs - invalid response format');
+                    }
+                } catch (error) {
+                    console.error('Error loading sync logs:', error);
+                    showError('Error loading sync logs: ' + error.message);
+                }
+            }
+
+            function filterLogs() {
+                console.log('Filtering logs...');
+                console.log('All logs count:', allLogs.length);
+                
+                const statusFilter = document.getElementById('statusFilter').value;
+                const typeFilter = document.getElementById('typeFilter').value;
+                const dateFilter = parseInt(document.getElementById('dateFilter').value);
+                
+                console.log('Filters:', { statusFilter, typeFilter, dateFilter });
+                
+                filteredLogs = allLogs.filter(log => {
+                    const statusMatch = !statusFilter || log.status === statusFilter;
+                    const typeMatch = !typeFilter || log.sync_type === typeFilter;
+                    
+                    // Date filter
+                    const logDate = new Date(log.started_at);
+                    const cutoffDate = new Date(Date.now() - (dateFilter * 60 * 60 * 1000));
+                    const dateMatch = logDate >= cutoffDate;
+                    
+                    return statusMatch && typeMatch && dateMatch;
+                });
+                
+                console.log('Filtered logs count:', filteredLogs.length);
+                renderLogsTable();
+                updateStatistics();
+            }
+
+            function renderLogsTable() {
+                console.log('Rendering logs table...');
+                const tbody = document.getElementById('syncLogsTableBody');
+                
+                if (!tbody) {
+                    console.error('Table body element not found!');
+                    return;
+                }
+                
+                if (filteredLogs.length === 0) {
+                    console.log('No logs to display');
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No sync logs found matching the current filters.</td></tr>';
+                    return;
+                }
+                
+                console.log('Rendering', filteredLogs.length, 'logs');
+                
+                const html = filteredLogs.map(log => {
+                    const statusBadge = getStatusBadge(log.status);
+                    const startedDate = new Date(log.started_at).toLocaleString();
+                    const completedDate = log.completed_at ? new Date(log.completed_at).toLocaleString() : '-';
+                    
+                    return '<tr class="log-entry" onclick="showLogDetails(' + log.id + ')">' +
+                        '<td>' + log.id + '</td>' +
+                        '<td><span class="badge bg-info">' + log.sync_type + '</span></td>' +
+                        '<td>' + statusBadge + '</td>' +
+                        '<td>' + (log.items_processed || 0) + '</td>' +
+                        '<td>' + (log.duration_seconds || 0) + 's</td>' +
+                        '<td>' + startedDate + '</td>' +
+                        '<td>' + completedDate + '</td>' +
+                        '<td>' +
+                            '<button class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation(); showLogDetails(' + log.id + ')">' +
+                                '<i class="fas fa-eye"></i>' +
+                            '</button>' +
+                        '</td>' +
+                    '</tr>';
+                }).join('');
+                
+                tbody.innerHTML = html;
+            }
+
+            function getStatusBadge(status) {
+                const badges = {
+                    'completed': '<span class="badge bg-success status-badge">Completed</span>',
+                    'failed': '<span class="badge bg-danger status-badge">Failed</span>',
+                    'started': '<span class="badge bg-warning status-badge">Started</span>',
+                    'cancelled': '<span class="badge bg-secondary status-badge">Cancelled</span>'
+                };
+                return badges[status] || '<span class="badge bg-light text-dark status-badge">Unknown</span>';
+            }
+
+            function updateStatistics() {
+                const completed = filteredLogs.filter(log => log.status === 'completed').length;
+                const failed = filteredLogs.filter(log => log.status === 'failed').length;
+                const totalItems = filteredLogs.reduce((sum, log) => sum + (log.items_processed || 0), 0);
+                const avgDuration = filteredLogs.length > 0 
+                    ? Math.round(filteredLogs.reduce((sum, log) => sum + (log.duration_seconds || 0), 0) / filteredLogs.length)
+                    : 0;
+                
+                document.getElementById('completedCount').textContent = completed;
+                document.getElementById('failedCount').textContent = failed;
+                document.getElementById('totalItems').textContent = totalItems;
+                document.getElementById('avgDuration').textContent = avgDuration + 's';
+            }
+
+            function showLogDetails(logId) {
+                const log = filteredLogs.find(l => l.id === logId);
+                if (!log) return;
+                
+                const content = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Basic Information</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>ID:</strong></td><td>${log.id}</td></tr>
+                                <tr><td><strong>Type:</strong></td><td>${log.sync_type}</td></tr>
+                                <tr><td><strong>Status:</strong></td><td>${getStatusBadge(log.status)}</td></tr>
+                                <tr><td><strong>Items Processed:</strong></td><td>${log.items_processed || 0}</td></tr>
+                                <tr><td><strong>Items Successful:</strong></td><td>${log.items_successful || 0}</td></tr>
+                                <tr><td><strong>Items Failed:</strong></td><td>${log.items_failed || 0}</td></tr>
+                                <tr><td><strong>Duration:</strong></td><td>${log.duration_seconds || 0} seconds</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Timestamps</h6>
+                            <table class="table table-sm">
+                                <tr><td><strong>Started:</strong></td><td>${new Date(log.started_at).toLocaleString()}</td></tr>
+                                <tr><td><strong>Completed:</strong></td><td>${log.completed_at ? new Date(log.completed_at).toLocaleString() : 'Not completed'}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    ${log.message ? `
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <h6>Message</h6>
+                                <div class="log-details p-2 bg-light rounded">${log.message}</div>
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${log.error_details ? `
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <h6>Error Details</h6>
+                                <div class="log-details p-2 bg-danger text-white rounded">${log.error_details}</div>
+                            </div>
+                        </div>
+                    ` : ''}
+                `;
+                
+                document.getElementById('logDetailsContent').innerHTML = content;
+                new bootstrap.Modal(document.getElementById('logDetailsModal')).show();
+            }
+
+            function clearFilters() {
+                document.getElementById('statusFilter').value = '';
+                document.getElementById('typeFilter').value = '';
+                document.getElementById('dateFilter').value = '24';
+                filterLogs();
+            }
+
+            function refreshLogs() {
+                loadSyncLogs();
+            }
+
+            function exportLogs() {
+                // Simple CSV export
+                const headers = ['ID', 'Type', 'Status', 'Items', 'Duration', 'Started', 'Completed', 'Message'];
+                const rows = filteredLogs.map(log => [
+                    log.id,
+                    log.sync_type,
+                    log.status,
+                    log.items_processed || 0,
+                    log.duration_seconds || 0,
+                    log.started_at,
+                    log.completed_at || '',
+                    (log.message || '').replace(/"/g, '""')
+                ]);
+                
+                const csvContent = [headers, ...rows]
+                    .map(row => row.map(cell => '"' + cell + '"').join(','))
+                    .join('\\n');
+                
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'sync-logs-' + new Date().toISOString().split('T')[0] + '.csv';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            }
+
+            function showError(message) {
+                const tbody = document.getElementById('syncLogsTableBody');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center text-danger">
+                            <i class="fas fa-exclamation-triangle"></i> ${message}
+                            <br><small>Check browser console for more details</small>
+                        </td>
+                    </tr>
+                `;
+            }
+            
+            function showLoading() {
+                const tbody = document.getElementById('syncLogsTableBody');
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <br>Loading sync logs...
+                        </td>
+                    </tr>
+                `;
+            }
+
+            // Logout function
+            async function logout() {
+                try {
+                    await fetch('/admin/api/logout', {
+                        method: 'GET'
+                    });
+                    window.location.href = '/admin/login';
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    window.location.href = '/admin/login';
+                }
+            }
+        </script>
+    </body>
+    </html>
+    """
+    
+    return HTMLResponse(content=sync_logs_html, status_code=200)
 
 
 @router.get("/parsing-queue", response_class=HTMLResponse)
