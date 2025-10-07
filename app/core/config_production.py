@@ -71,8 +71,8 @@ class ProductionSettings(BaseSettings):
     METRICS_ENDPOINT: str = "/metrics"
     
     # Celery Settings
-    CELERY_BROKER_URL: str
-    CELERY_RESULT_BACKEND: str
+    CELERY_BROKER_URL: Optional[str] = None
+    CELERY_RESULT_BACKEND: Optional[str] = None
     CELERY_TASK_SERIALIZER: str = "json"
     CELERY_ACCEPT_CONTENT: List[str] = ["json"]
     CELERY_RESULT_SERIALIZER: str = "json"
@@ -209,8 +209,8 @@ def get_celery_config() -> Dict[str, Any]:
     settings = get_settings()
     
     return {
-        "broker_url": settings.CELERY_BROKER_URL,
-        "result_backend": settings.CELERY_RESULT_BACKEND,
+        "broker_url": settings.CELERY_BROKER_URL or "redis://redis:6379/0",
+        "result_backend": settings.CELERY_RESULT_BACKEND or "redis://redis:6379/0",
         "task_serializer": settings.CELERY_TASK_SERIALIZER,
         "accept_content": settings.CELERY_ACCEPT_CONTENT,
         "result_serializer": settings.CELERY_RESULT_SERIALIZER,
@@ -279,8 +279,6 @@ def validate_required_settings():
         "SECRET_KEY",
         "JWT_SECRET_KEY",
         "DATABASE_URL",
-        "CELERY_BROKER_URL",
-        "CELERY_RESULT_BACKEND",
         "LOGIKAL_API_BASE_URL",
     ]
     
