@@ -59,8 +59,8 @@ if production_settings.ENVIRONMENT == "production":
 # if production_settings.PROMETHEUS_ENABLED:
 #     setup_prometheus_metrics(app)
 
-# Setup logging middleware
-app.add_middleware(LoggingMiddleware)
+# Setup logging middleware (temporarily disabled due to structlog issue)
+# app.add_middleware(LoggingMiddleware)
 
 @app.get("/")
 async def root():
