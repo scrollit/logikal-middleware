@@ -58,18 +58,54 @@ async def test_connection(
 ):
     """Test connection to Logikal API"""
     try:
-        auth_service = AuthService(db)
-        success, message = await auth_service.test_connection(
-            base_url=base_url,
-            username=username,
-            password=password
-        )
+        # Simple connection test without database logging for now
+        import aiohttp
+        import asyncio
         
-        return ConnectionTestResponse(
-            success=success,
-            message=message,
-            timestamp=datetime.utcnow()
-        )
+        url = f"{base_url.rstrip('/')}/auth"
+        payload = {
+            "username": username,
+            "password": password,
+            "erp": True
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.post(url, json=payload, timeout=10) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if 'data' in data and 'token' in data['data']:
+                            return ConnectionTestResponse(
+                                success=True,
+                                message="Connection test successful",
+                                timestamp=datetime.utcnow()
+                            )
+                        else:
+                            return ConnectionTestResponse(
+                                success=False,
+                                message=f"Unexpected response structure: {data}",
+                                timestamp=datetime.utcnow()
+                            )
+                    else:
+                        response_text = await response.text()
+                        return ConnectionTestResponse(
+                            success=False,
+                            message=f"Authentication failed: {response.status} - {response_text}",
+                            timestamp=datetime.utcnow()
+                        )
+            except asyncio.TimeoutError:
+                return ConnectionTestResponse(
+                    success=False,
+                    message="Connection timeout - server may be unreachable",
+                    timestamp=datetime.utcnow()
+                )
+            except Exception as e:
+                return ConnectionTestResponse(
+                    success=False,
+                    message=f"Connection error: {str(e)}",
+                    timestamp=datetime.utcnow()
+                )
+                
     except Exception as e:
         return ConnectionTestResponse(
             success=False,
