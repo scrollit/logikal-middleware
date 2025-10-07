@@ -17,11 +17,13 @@ router = APIRouter(prefix="/directories", tags=["directories"])
 async def get_cached_directories(db: Session = Depends(get_db)):
     """Get all cached directories from middleware database (no authentication required)"""
     try:
-        cached_directories = db.query(Directory).all()
+        directory_service = DirectoryService(db, "", "")  # No API calls needed for this operation
+        enriched_directories = await directory_service.get_directories_with_cascade_info()
+        
         return DirectoryListResponse(
-            data=[DirectoryResponse.from_orm(dir_obj) for dir_obj in cached_directories],
-            count=len(cached_directories),
-            last_updated=max([dir_obj.synced_at for dir_obj in cached_directories if dir_obj.synced_at]) if cached_directories else None,
+            data=enriched_directories,
+            count=len(enriched_directories),
+            last_updated=max([dir_obj.get('synced_at') for dir_obj in enriched_directories if dir_obj.get('synced_at')]) if enriched_directories else None,
             sync_status="cached"
         )
     except Exception as e:

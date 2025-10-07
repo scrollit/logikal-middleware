@@ -34,6 +34,8 @@ class DirectoryResponse(DirectoryBase):
     sync_status: Optional[str] = Field(None, description="Sync status")
     created_at: datetime
     updated_at: datetime
+    is_excluded_by_parent: bool = Field(False, description="Whether this directory is excluded due to parent exclusion")
+    can_toggle_exclusion: bool = Field(True, description="Whether this directory's exclusion can be toggled")
     
     class Config:
         from_attributes = True

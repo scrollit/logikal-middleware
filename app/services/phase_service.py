@@ -116,8 +116,8 @@ class PhaseService:
                 # Track navigation state
                 self.current_phase = phase_identifier
                 
-                # Clear cached data when phase changes
-                await self._clear_cached_data()
+                # Clear cached data when phase changes - DISABLED to prevent sync data loss
+                # await self._clear_cached_data()
                 
                 # Log successful operation
                 await self._log_api_call(

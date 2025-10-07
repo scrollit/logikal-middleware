@@ -8,11 +8,18 @@ engine = create_engine(
     settings.DATABASE_URL,
     pool_pre_ping=True,
     pool_recycle=300,
-    echo=False  # Disable SQL logging for cleaner logs
+    echo=False,  # Disable SQL logging for cleaner logs
+    future=True,
 )
 
 # Create session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(
+    bind=engine,
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,   # << important - stops SQLAlchemy from expiring objects on each commit
+    future=True,
+)
 
 # Create base class for models
 Base = declarative_base()
@@ -24,4 +31,5 @@ def get_db():
     try:
         yield db
     finally:
+        # This does NOT roll back committed work; it only returns the connection to the pool.
         db.close()

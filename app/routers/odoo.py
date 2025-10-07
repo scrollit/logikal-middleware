@@ -8,7 +8,7 @@ from core.security import require_permission, get_current_client, require_projec
 from schemas.odoo.project_response import (
     OdooProjectListResponse, OdooProjectResponse, OdooProjectCompleteResponse,
     OdooProjectSummaryResponse, OdooSearchResponse, OdooStatsResponse,
-    OdooPhaseResponse, OdooElevationResponse
+    OdooPhaseResponse, OdooElevationResponse, OdooGlassSpecification
 )
 from models.project import Project
 from models.phase import Phase
@@ -99,6 +99,7 @@ async def get_project_for_odoo(
             
             odoo_elevations = [
                 OdooElevationResponse(
+                    # Existing fields (maintain backward compatibility)
                     id=elevation.logikal_id,
                     name=elevation.name,
                     description=elevation.description,
@@ -107,7 +108,46 @@ async def get_project_for_odoo(
                     width=elevation.width,
                     height=elevation.height,
                     depth=elevation.depth,
-                    created_at=elevation.created_at
+                    created_at=elevation.created_at,
+                    
+                    # NEW: SQLite enrichment data
+                    auto_description=elevation.auto_description,
+                    auto_description_short=elevation.auto_description_short,
+                    width_out=elevation.width_out,
+                    width_unit=elevation.width_unit,
+                    height_out=elevation.height_out,
+                    height_unit=elevation.height_unit,
+                    weight_out=elevation.weight_out,
+                    weight_unit=elevation.weight_unit,
+                    area_output=elevation.area_output,
+                    area_unit=elevation.area_unit,
+                    
+                    # NEW: System information
+                    system_code=elevation.system_code,
+                    system_name=elevation.system_name,
+                    system_long_name=elevation.system_long_name,
+                    color_base_long=elevation.color_base_long,
+                    
+                    # NEW: Parts information
+                    parts_count=elevation.parts_count,
+                    has_parts_data=elevation.has_parts_data,
+                    parts_synced_at=elevation.parts_synced_at,
+                    
+                    # NEW: Quality metrics
+                    parse_status=elevation.parse_status,
+                    data_quality_score=elevation.calculate_data_quality_score(),
+                    
+                    # NEW: Glass specifications
+                    glass_specifications=[
+                        OdooGlassSpecification(
+                            glass_id=glass.glass_id,
+                            name=glass.name
+                        ) for glass in elevation.glass_specifications
+                    ],
+                    
+                    # NEW: Enhanced timestamps
+                    last_sync_date=elevation.last_sync_date,
+                    last_update_date=elevation.last_update_date
                 )
                 for elevation in elevations
             ]
@@ -189,6 +229,7 @@ async def get_project_complete_for_odoo(
             
             odoo_elevations = [
                 OdooElevationResponse(
+                    # Existing fields (maintain backward compatibility)
                     id=elevation.logikal_id,
                     name=elevation.name,
                     description=elevation.description,
@@ -197,7 +238,46 @@ async def get_project_complete_for_odoo(
                     width=elevation.width,
                     height=elevation.height,
                     depth=elevation.depth,
-                    created_at=elevation.created_at
+                    created_at=elevation.created_at,
+                    
+                    # NEW: SQLite enrichment data
+                    auto_description=elevation.auto_description,
+                    auto_description_short=elevation.auto_description_short,
+                    width_out=elevation.width_out,
+                    width_unit=elevation.width_unit,
+                    height_out=elevation.height_out,
+                    height_unit=elevation.height_unit,
+                    weight_out=elevation.weight_out,
+                    weight_unit=elevation.weight_unit,
+                    area_output=elevation.area_output,
+                    area_unit=elevation.area_unit,
+                    
+                    # NEW: System information
+                    system_code=elevation.system_code,
+                    system_name=elevation.system_name,
+                    system_long_name=elevation.system_long_name,
+                    color_base_long=elevation.color_base_long,
+                    
+                    # NEW: Parts information
+                    parts_count=elevation.parts_count,
+                    has_parts_data=elevation.has_parts_data,
+                    parts_synced_at=elevation.parts_synced_at,
+                    
+                    # NEW: Quality metrics
+                    parse_status=elevation.parse_status,
+                    data_quality_score=elevation.calculate_data_quality_score(),
+                    
+                    # NEW: Glass specifications
+                    glass_specifications=[
+                        OdooGlassSpecification(
+                            glass_id=glass.glass_id,
+                            name=glass.name
+                        ) for glass in elevation.glass_specifications
+                    ],
+                    
+                    # NEW: Enhanced timestamps
+                    last_sync_date=elevation.last_sync_date,
+                    last_update_date=elevation.last_update_date
                 )
                 for elevation in elevations
             ]
@@ -264,6 +344,7 @@ async def get_project_phases_for_odoo(
             )
         
         phases = project_data["phases"]
+        project = project_data["project"]
         odoo_phases = []
         
         for phase in phases:
@@ -305,22 +386,24 @@ async def get_phase_elevations_for_odoo(
     """Get all elevations for a specific phase"""
     try:
         direct_service = DirectProjectService(db)
-        phase_data = await direct_service.get_phase_with_elevations(phase_id)
+        phase_data = await direct_service.get_phase_with_elevations_by_project(project_id, phase_id)
         
         if not phase_data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={
                     "code": "PHASE_NOT_FOUND",
-                    "message": f"Phase with ID '{phase_id}' not found"
+                    "message": f"Phase with ID '{phase_id}' not found in project '{project_id}'"
                 }
             )
         
         elevations = phase_data["elevations"]
+        phase = phase_data["phase"]
         odoo_elevations = []
         
         for elevation in elevations:
             odoo_elevations.append(OdooElevationResponse(
+                # Existing fields (maintain backward compatibility)
                 id=elevation.logikal_id,
                 name=elevation.name,
                 description=elevation.description,
@@ -329,7 +412,46 @@ async def get_phase_elevations_for_odoo(
                 width=elevation.width,
                 height=elevation.height,
                 depth=elevation.depth,
-                created_at=elevation.created_at
+                created_at=elevation.created_at,
+                
+                # NEW: SQLite enrichment data
+                auto_description=elevation.auto_description,
+                auto_description_short=elevation.auto_description_short,
+                width_out=elevation.width_out,
+                width_unit=elevation.width_unit,
+                height_out=elevation.height_out,
+                height_unit=elevation.height_unit,
+                weight_out=elevation.weight_out,
+                weight_unit=elevation.weight_unit,
+                area_output=elevation.area_output,
+                area_unit=elevation.area_unit,
+                
+                # NEW: System information
+                system_code=elevation.system_code,
+                system_name=elevation.system_name,
+                system_long_name=elevation.system_long_name,
+                color_base_long=elevation.color_base_long,
+                
+                # NEW: Parts information
+                parts_count=elevation.parts_count,
+                has_parts_data=elevation.has_parts_data,
+                parts_synced_at=elevation.parts_synced_at,
+                
+                # NEW: Quality metrics
+                parse_status=elevation.parse_status,
+                data_quality_score=elevation.calculate_data_quality_score(),
+                
+                # NEW: Glass specifications
+                glass_specifications=[
+                    OdooGlassSpecification(
+                        glass_id=glass.glass_id,
+                        name=glass.name
+                    ) for glass in elevation.glass_specifications
+                ],
+                
+                # NEW: Enhanced timestamps
+                last_sync_date=elevation.last_sync_date,
+                last_update_date=elevation.last_update_date
             ))
         
         return odoo_elevations

@@ -53,7 +53,7 @@ services:
   celery-worker:
     container_name: logikal-celery-worker
     build: .
-    command: celery -A celery_app worker --loglevel=info --queues=sync,scheduler
+    command: celery -A celery_app worker --loglevel=info --queues=sync,scheduler,sqlite_parser
     volumes:
       - ./app:/app
     env_file:

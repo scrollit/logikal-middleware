@@ -86,7 +86,7 @@ class SyncService:
                 logger.info(f"Syncing phases for project: {project.name}")
                 
                 phase_result = await self.phase_sync_service.sync_phases_for_project(
-                    base_url, username, password, project
+                    self.db, base_url, username, password, project
                 )
                 
                 if phase_result['success']:
@@ -103,7 +103,7 @@ class SyncService:
                 logger.info(f"Syncing elevations for phase: {phase.name}")
                 
                 elevation_result = await self.elevation_sync_service.sync_elevations_for_phase(
-                    base_url, username, password, phase
+                    self.db, base_url, username, password, phase
                 )
                 
                 if elevation_result['success']:
@@ -367,8 +367,9 @@ class SyncService:
         try:
             logger.info("Starting project sync")
             result = await self.project_sync_service.sync_all_projects(
-                base_url, username, password
+                self.db, base_url, username, password
             )
+            
             return {
                 'success': True,
                 'message': f'Project sync completed. {result.get("message", "")}',
@@ -387,7 +388,7 @@ class SyncService:
         try:
             logger.info("Starting phase sync")
             result = await self.phase_sync_service.sync_all_phases(
-                base_url, username, password
+                self.db, base_url, username, password
             )
             return {
                 'success': True,
@@ -407,7 +408,7 @@ class SyncService:
         try:
             logger.info("Starting elevation sync")
             result = await self.elevation_sync_service.sync_all_elevations(
-                base_url, username, password
+                self.db, base_url, username, password
             )
             return {
                 'success': True,

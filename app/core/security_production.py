@@ -290,30 +290,38 @@ def setup_security_middleware(app):
     """
     Setup all security middleware for the FastAPI application
     """
+    from core.config_production import get_settings
+    settings = get_settings()
     
     # Trusted hosts middleware
+    trusted_hosts = settings.TRUSTED_HOSTS or ["*"]
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["localhost", "127.0.0.1", "*.yourdomain.com"]  # Configure for production
+        allowed_hosts=trusted_hosts
     )
     
     # CORS middleware
+    cors_origins = settings.CORS_ORIGINS or ["*"]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "https://yourdomain.com"],  # Configure for production
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE"],
-        allow_headers=["*"],
+        allow_origins=cors_origins,
+        allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
+        allow_methods=settings.CORS_ALLOW_METHODS,
+        allow_headers=settings.CORS_ALLOW_HEADERS,
     )
     
     # Security headers middleware
     app.add_middleware(SecurityHeadersMiddleware)
     
     # Request validation middleware
-    app.add_middleware(RequestValidationMiddleware)
+    app.add_middleware(RequestValidationMiddleware, max_request_size=settings.MAX_REQUEST_SIZE)
     
     # Rate limiting middleware
-    app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(
+        RateLimitMiddleware,
+        calls_per_minute=settings.RATE_LIMIT_PER_MINUTE,
+        calls_per_hour=settings.RATE_LIMIT_PER_HOUR
+    )
     
     # Security audit middleware
     app.add_middleware(SecurityAuditMiddleware)

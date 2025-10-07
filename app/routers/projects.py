@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from datetime import datetime
 from core.database import get_db
@@ -11,10 +11,20 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 
 
 @router.get("/cached", response_model=ProjectListResponse)
-async def get_cached_projects(db: Session = Depends(get_db)):
-    """Get all cached projects from middleware database (no authentication required)"""
+async def get_cached_projects(
+    directory_id: Optional[int] = Query(None, description="Filter by directory ID"),
+    db: Session = Depends(get_db)
+):
+    """Get cached projects from middleware database, optionally filtered by directory (no authentication required)"""
     try:
-        cached_projects = db.query(Project).all()
+        from models.directory import Directory
+        query = db.query(Project).options(joinedload(Project.directory))
+        
+        # Filter by directory if specified
+        if directory_id is not None:
+            query = query.filter(Project.directory_id == directory_id)
+        
+        cached_projects = query.all()
         from datetime import datetime, timedelta
         
         # Calculate stale projects
@@ -22,10 +32,36 @@ async def get_cached_projects(db: Session = Depends(get_db)):
         stale_threshold = datetime.now(timezone.utc) - timedelta(hours=24)
         stale_count = sum(1 for project in cached_projects if project.last_sync_date and project.last_sync_date.replace(tzinfo=timezone.utc) < stale_threshold)
         
+        # Create project data with directory names
+        project_data = []
+        for project in cached_projects:
+            project_dict = {
+                "id": project.id,
+                "logikal_id": project.logikal_id,
+                "name": project.name,
+                "description": project.description,
+                "directory_id": project.directory_id,
+                "status": project.status,
+                "created_at": project.created_at,
+                "updated_at": project.updated_at,
+                "last_sync_date": project.last_sync_date,
+                "last_update_date": project.last_update_date,
+                "directory_name": project.directory.name if project.directory else "Unknown Directory",
+                "is_stale": project.last_sync_date and project.last_sync_date.replace(tzinfo=timezone.utc) < stale_threshold
+            }
+            project_data.append(ProjectResponse(**project_dict))
+        
+        # Calculate last updated timestamp
+        last_updated = None
+        if cached_projects:
+            sync_dates = [project.last_sync_date for project in cached_projects if project.last_sync_date]
+            if sync_dates:
+                last_updated = max(sync_dates)
+        
         return ProjectListResponse(
-            data=[ProjectResponse.from_orm(project) for project in cached_projects],
+            data=project_data,
             count=len(cached_projects),
-            last_updated=max([project.last_sync_date for project in cached_projects if project.last_sync_date]) if cached_projects else None,
+            last_updated=last_updated.isoformat() if last_updated else None,
             sync_status="cached",
             stale_count=stale_count
         )

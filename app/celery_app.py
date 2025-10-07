@@ -9,7 +9,8 @@ celery_app = Celery(
     backend=f"redis://{os.getenv('REDIS_HOST', 'logikal-redis')}:{os.getenv('REDIS_PORT', '6379')}/0",
     include=[
         "tasks.sync_tasks",
-        "tasks.scheduler_tasks"
+        "tasks.scheduler_tasks",
+        "tasks.sqlite_parser_tasks"
     ]
 )
 
@@ -32,6 +33,7 @@ celery_app.conf.update(
     task_routes={
         "tasks.sync_tasks.*": {"queue": "sync"},
         "tasks.scheduler_tasks.*": {"queue": "scheduler"},
+        "tasks.sqlite_parser_tasks.*": {"queue": "sqlite_parser"},
     },
     # Periodic task settings
     beat_schedule={

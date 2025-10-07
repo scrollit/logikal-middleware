@@ -3,13 +3,13 @@ services:
 - name: web
   source_dir: /app
   github:
-    repo: HendrickxJasper/logikal-middleware
+    repo: scrollit/logikal-middleware
     branch: main
-  run_command: uvicorn main:app --host 0.0.0.0 --port 8080 --workers 4
+  run_command: python startup.py
   environment_slug: python
   instance_count: 1
   instance_size_slug: basic-xxs
-  http_port: 8080
+  http_port: 8000
   dockerfile_path: Dockerfile
   envs:
   - key: ENVIRONMENT

@@ -22,6 +22,12 @@ class PhaseResponse(PhaseBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    last_sync_date: Optional[datetime] = None
+    last_update_date: Optional[datetime] = None
+    synced_at: Optional[datetime] = None
+    sync_status: Optional[str] = None
+    project_name: Optional[str] = None
+    is_stale: Optional[bool] = None
     
     class Config:
         from_attributes = True
@@ -32,3 +38,6 @@ class PhaseListResponse(BaseModel):
     success: bool = True
     data: List[PhaseResponse]
     count: int
+    last_updated: Optional[str] = None
+    sync_status: Optional[str] = None
+    stale_count: Optional[int] = None

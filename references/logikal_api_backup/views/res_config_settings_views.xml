@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Configuration Settings View -->
+    <record id="res_config_settings_view_logikal" model="ir.ui.view">
+        <field name="name">res.config.settings.logikal</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="18"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='integration']" position="after">
+                <div class="app_settings_block" data-string="Logikal API" data-key="logikal_api">
+                    <h2>Logikal API Integration</h2>
+                    
+                    <!-- Connection Settings Group -->
+                    <div class="row mt32">
+                        <div class="col-12">
+                            <h3 class="text-primary">Connection Settings</h3>
+                        </div>
+                        
+                        <div class="col-12 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="mbioe_api_url" class="fw-bold">Logikal API URL</label>
+                                <div class="text-muted mb8">
+                                    Base URL for the Logikal API endpoint
+                                </div>
+                                <field name="mbioe_api_url" placeholder="https://server.com/api/v3" class="w-50"/>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="mbioe_username" class="fw-bold">Username</label>
+                                <div class="text-muted mb8">
+                                    Logikal API authentication username
+                                </div>
+                                <field name="mbioe_username" class="w-75"/>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="mbioe_password" class="fw-bold">Password</label>
+                                <div class="text-muted mb8">
+                                    Logikal API authentication password
+                                </div>
+                                <field name="mbioe_password" password="True" class="w-75"/>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Integration Mode Selection -->
+                    <div class="row mt32">
+                        <div class="col-12">
+                            <h3 class="text-primary">Integration Mode</h3>
+                        </div>
+                        
+                        <div class="col-12 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="use_middleware" class="fw-bold">Use Middleware Integration</label>
+                                <div class="text-muted mb8">
+                                    Use Logikal Middleware instead of direct API connection (recommended)
+                                </div>
+                                <field name="use_middleware"/>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Middleware Configuration (shown when use_middleware is True) -->
+                    <div class="row mt32" attrs="{'invisible': [('use_middleware', '=', False)]}">
+                        <div class="col-12">
+                            <h3 class="text-primary">Middleware Configuration</h3>
+                        </div>
+                        
+                        <div class="col-12 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="middleware_api_url" class="fw-bold">Middleware API URL</label>
+                                <div class="text-muted mb8">
+                                    Base URL for the Logikal Middleware API
+                                </div>
+                                <field name="middleware_api_url" placeholder="http://localhost:8001" class="w-50"/>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="middleware_client_id" class="fw-bold">Client ID</label>
+                                <div class="text-muted mb8">
+                                    Middleware authentication client ID
+                                </div>
+                                <field name="middleware_client_id" class="w-75"/>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <label for="middleware_client_secret" class="fw-bold">Client Secret</label>
+                                <div class="text-muted mb8">
+                                    Middleware authentication client secret
+                                </div>
+                                <field name="middleware_client_secret" password="True" class="w-75"/>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Advanced Settings Group -->
+                    <div class="row mt32">
+                        <div class="col-12">
+                            <h3 class="text-primary">Advanced Settings</h3>
+                        </div>
+                        
+                        <!-- MBIOE Settings (shown when use_middleware is False) -->
+                        <div class="col-12 col-lg-4 o_setting_box" attrs="{'invisible': [('use_middleware', '=', True)]}">
+                            <div class="o_setting_right_pane">
+                                <label for="mbioe_connection_timeout" class="fw-bold">Connection Timeout</label>
+                                <div class="text-muted mb8">
+                                    API timeout in seconds (5-300)
+                                </div>
+                                <field name="mbioe_connection_timeout"/>
+                            </div>
+                        </div>
+                        
+                        <!-- Middleware Settings (shown when use_middleware is True) -->
+                        <div class="col-12 col-lg-4 o_setting_box" attrs="{'invisible': [('use_middleware', '=', False)]}">
+                            <div class="o_setting_right_pane">
+                                <label for="middleware_connection_timeout" class="fw-bold">Connection Timeout</label>
+                                <div class="text-muted mb8">
+                                    Middleware timeout in seconds (5-300)
+                                </div>
+                                <field name="middleware_connection_timeout"/>
+                            </div>
+                        </div>
+                        
+                        <!-- MBIOE Log Settings -->
+                        <div class="col-12 col-lg-4 o_setting_box" attrs="{'invisible': [('use_middleware', '=', True)]}">
+                            <div class="o_setting_right_pane">
+                                <label for="mbioe_log_cleanup_days" class="fw-bold">Log Retention</label>
+                                <div class="text-muted mb8">
+                                    Days to keep logs (0 = forever)
+                                </div>
+                                <field name="mbioe_log_cleanup_days"/>
+                            </div>
+                        </div>
+                        
+                        <!-- Middleware Log Settings -->
+                        <div class="col-12 col-lg-4 o_setting_box" attrs="{'invisible': [('use_middleware', '=', False)]}">
+                            <div class="o_setting_right_pane">
+                                <label for="middleware_log_cleanup_days" class="fw-bold">Log Retention</label>
+                                <div class="text-muted mb8">
+                                    Days to keep logs (0 = forever)
+                                </div>
+                                <field name="middleware_log_cleanup_days"/>
+                            </div>
+                        </div>
+                        
+                        <div class="col-12 col-lg-4 o_setting_box" attrs="{'invisible': [('use_middleware', '=', True)]}">
+                            <div class="o_setting_right_pane">
+                                <label for="mbioe_enable_debug_logging" class="fw-bold">Debug Logging</label>
+                                <div class="text-muted mb8">
+                                    Enable detailed API logging
+                                </div>
+                                <field name="mbioe_enable_debug_logging"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -19,6 +19,9 @@ class Phase(Base):
     # Smart sync tracking fields
     last_sync_date = Column(DateTime(timezone=True), nullable=True, comment="Last time data was synced from Logikal")
     last_update_date = Column(DateTime(timezone=True), nullable=True, comment="Last time data was modified in Logikal")
+    # Basic sync tracking fields
+    synced_at = Column(DateTime(timezone=True), nullable=True, comment="Last sync timestamp")
+    sync_status = Column(String(50), default='pending', nullable=False, comment="Sync status: pending, synced, error")
     
     # Relationships
     project = relationship("Project", backref="phases")

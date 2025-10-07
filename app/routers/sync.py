@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Dict
 from core.database import get_db
 from services.sync_service import SyncService
+from services.parts_list_sync_service import PartsListSyncService
 from schemas.sync import SyncRequest, SyncResponse, SyncStatusResponse
 
 router = APIRouter(prefix="/sync", tags=["sync"])
@@ -144,18 +145,24 @@ async def sync_directories_optimized_ui(db: Session = Depends(get_db)):
 
 
 @router.post("/projects")
-async def sync_projects_ui(db: Session = Depends(get_db)):
+async def sync_projects_ui():
     """Sync projects for UI (no authentication required)"""
     try:
         from core.config_production import get_settings
+        from core.database import SessionLocal
         settings = get_settings()
         
-        sync_service = SyncService(db)
-        result = await sync_service.sync_projects(
-            settings.LOGIKAL_API_BASE_URL,
-            settings.LOGIKAL_AUTH_USERNAME,
-            settings.LOGIKAL_AUTH_PASSWORD
-        )
+        # Create dedicated session for sync operation to avoid session isolation issues
+        db = SessionLocal()
+        try:
+            sync_service = SyncService(db)
+            result = await sync_service.sync_projects(
+                settings.LOGIKAL_API_BASE_URL,
+                settings.LOGIKAL_AUTH_USERNAME,
+                settings.LOGIKAL_AUTH_PASSWORD
+            )
+        finally:
+            db.close()
         
         if result['success']:
             return {
@@ -176,18 +183,24 @@ async def sync_projects_ui(db: Session = Depends(get_db)):
 
 
 @router.post("/phases")
-async def sync_phases_ui(db: Session = Depends(get_db)):
+async def sync_phases_ui():
     """Sync phases for UI (no authentication required)"""
     try:
         from core.config_production import get_settings
+        from core.database import SessionLocal
         settings = get_settings()
         
-        sync_service = SyncService(db)
-        result = await sync_service.sync_phases(
-            settings.LOGIKAL_API_BASE_URL,
-            settings.LOGIKAL_AUTH_USERNAME,
-            settings.LOGIKAL_AUTH_PASSWORD
-        )
+        # Create dedicated session for sync operation to avoid session isolation issues
+        db = SessionLocal()
+        try:
+            sync_service = SyncService(db)
+            result = await sync_service.sync_phases(
+                settings.LOGIKAL_API_BASE_URL,
+                settings.LOGIKAL_AUTH_USERNAME,
+                settings.LOGIKAL_AUTH_PASSWORD
+            )
+        finally:
+            db.close()
         
         if result['success']:
             return {
@@ -208,18 +221,24 @@ async def sync_phases_ui(db: Session = Depends(get_db)):
 
 
 @router.post("/elevations")
-async def sync_elevations_ui(db: Session = Depends(get_db)):
+async def sync_elevations_ui():
     """Sync elevations for UI (no authentication required)"""
     try:
         from core.config_production import get_settings
+        from core.database import SessionLocal
         settings = get_settings()
         
-        sync_service = SyncService(db)
-        result = await sync_service.sync_elevations(
-            settings.LOGIKAL_API_BASE_URL,
-            settings.LOGIKAL_AUTH_USERNAME,
-            settings.LOGIKAL_AUTH_PASSWORD
-        )
+        # Create dedicated session for sync operation to avoid session isolation issues
+        db = SessionLocal()
+        try:
+            sync_service = SyncService(db)
+            result = await sync_service.sync_elevations(
+                settings.LOGIKAL_API_BASE_URL,
+                settings.LOGIKAL_AUTH_USERNAME,
+                settings.LOGIKAL_AUTH_PASSWORD
+            )
+        finally:
+            db.close()
         
         if result['success']:
             return {
@@ -332,6 +351,43 @@ async def trigger_incremental_sync(
                 "message": "Internal server error",
                 "details": str(e)
             }
+        )
+
+
+@router.post("/parts-list")
+async def sync_parts_list_ui(db: Session = Depends(get_db)):
+    """Sync parts-list for all elevations (no authentication required)"""
+    try:
+        # Try to get stored credentials from environment or use defaults
+        from core.config_production import get_settings
+        settings = get_settings()
+        
+        parts_sync_service = PartsListSyncService(db)
+        result = await parts_sync_service.sync_all_parts(
+            settings.LOGIKAL_API_BASE_URL,
+            settings.LOGIKAL_AUTH_USERNAME,
+            settings.LOGIKAL_AUTH_PASSWORD
+        )
+        
+        if result['success']:
+            return {
+                "success": True,
+                "message": result['message'],
+                "processed": result.get('processed', 0),
+                "successful": result.get('successful', 0),
+                "errors": result.get('errors', 0),
+                "error_details": result.get('error_details', [])
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result['message']
+            )
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
         )
 
 

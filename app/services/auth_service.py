@@ -138,24 +138,32 @@ class AuthService:
             return False, f"Connection test error: {str(e)}"
     
     async def logout(self):
-        """Terminate current session"""
+        """Terminate current session with improved error handling"""
         if not self.session_token:
-            logger.warning("No active session to logout")
+            logger.debug("No active session to logout")
             return
             
-        # Mark session as inactive in database
-        session_record = self.db.query(SessionModel).filter(
-            SessionModel.token == self.session_token
-        ).first()
-        
-        if session_record:
-            session_record.is_active = False
-            self.db.commit()
-        
-        self.session_token = None
-        self.current_directory = None
-        self.current_project = None
-        logger.info("Session terminated")
+        try:
+            # Mark session as inactive in database
+            session_record = self.db.query(SessionModel).filter(
+                SessionModel.token == self.session_token
+            ).first()
+            
+            if session_record:
+                session_record.is_active = False
+                # DO NOT commit - let the main transaction handle it
+            
+            self.session_token = None
+            self.current_directory = None
+            self.current_project = None
+            logger.debug("Session terminated successfully")
+            
+        except Exception as e:
+            # Log error but don't fail logout - clear session anyway
+            logger.debug(f"Error during session cleanup: {type(e).__name__}")
+            self.session_token = None
+            self.current_directory = None
+            self.current_project = None
     
     async def _store_session(self, token: str, username: str, base_url: str, expires_at: datetime):
         """Store session information in database"""
@@ -182,12 +190,12 @@ class AuthService:
                 )
                 self.db.add(session_record)
             
-            self.db.commit()
+            # DO NOT commit - let the main transaction handle it
             logger.info("Session stored in database")
             
         except Exception as e:
             logger.error(f"Failed to store session: {str(e)}")
-            self.db.rollback()
+            # DO NOT rollback - let the main transaction handle it
     
     async def _log_api_call(self, operation: str, status: str, response_code: int, 
                            duration: int, request_url: str = None, request_method: str = None,
@@ -213,11 +221,11 @@ class AuthService:
             )
             
             self.db.add(api_log)
-            self.db.commit()
+            # DO NOT commit or rollback - let the main transaction handle it
             
         except Exception as e:
             logger.error(f"Failed to log API call: {str(e)}")
-            self.db.rollback()
+            # DO NOT rollback - let the main transaction handle it
     
     async def reset_navigation(self, base_url: str, username: str, password: str) -> Tuple[bool, str]:
         """Reset navigation by re-authenticating to return to root directory context"""

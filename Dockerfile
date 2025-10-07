@@ -9,6 +9,7 @@ ENV ENVIRONMENT=production
 RUN apt-get update && apt-get install -y \
     gcc \
     postgresql-client \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user
@@ -28,6 +29,9 @@ COPY ./app /app
 # Create logs directory
 RUN mkdir -p /app/logs && chown -R appuser:appuser /app
 
+# Make startup script executable
+RUN chmod +x /app/startup.py
+
 # Switch to non-root user
 USER appuser
 
@@ -35,8 +39,8 @@ USER appuser
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Run the startup script
+CMD ["python", "startup.py"]

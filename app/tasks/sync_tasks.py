@@ -3,6 +3,7 @@ from celery.exceptions import Retry
 from sqlalchemy.orm import Session
 from typing import List, Dict, Optional
 from datetime import datetime
+import asyncio
 import logging
 import traceback
 
@@ -118,10 +119,12 @@ def sync_project_task(self, project_id: str, force_sync: bool = False) -> Dict:
             }
         )
         
-        # Retry logic for certain types of errors
+        # Retry logic for certain types of errors with improved handling
         if isinstance(exc, (ConnectionError, TimeoutError)) and self.request.retries < 3:
-            logger.info(f"Retrying sync task {task_id} for project {project_id} (attempt {self.request.retries + 1})")
-            raise self.retry(countdown=60 * (2 ** self.request.retries))  # Exponential backoff
+            retry_count = self.request.retries + 1
+            countdown = min(60 * (2 ** self.request.retries), 300)  # Max 5 minutes
+            logger.info(f"Retrying sync task {task_id} for project {project_id} (attempt {retry_count}/{3}) in {countdown}s")
+            raise self.retry(countdown=countdown)
         
         raise exc
     
@@ -132,7 +135,7 @@ def sync_project_task(self, project_id: str, force_sync: bool = False) -> Dict:
 
 
 @celery_app.task(bind=True, name="tasks.sync_tasks.batch_sync_projects_task")
-def batch_sync_projects_task(self, project_ids: List[str], force_sync: bool = False) -> Dict:
+async def batch_sync_projects_task(self, project_ids: List[str], force_sync: bool = False) -> Dict:
     """
     Background task to sync multiple projects in batch.
     """
@@ -143,36 +146,64 @@ def batch_sync_projects_task(self, project_ids: List[str], force_sync: bool = Fa
         results = []
         total_projects = len(project_ids)
         
-        for i, project_id in enumerate(project_ids):
-            # Update progress
-            progress = int((i / total_projects) * 100)
-            self.update_state(
-                state="PROGRESS",
-                meta={
-                    "current": progress,
-                    "total": 100,
-                    "status": f"Syncing project {i+1}/{total_projects}: {project_id}",
-                    "project_id": project_id,
-                    "completed": i,
-                    "total_projects": total_projects
-                }
-            )
-            
-            # Sync individual project
-            try:
-                project_result = sync_project_task.delay(project_id, force_sync).get()
-                results.append({
-                    "project_id": project_id,
-                    "success": True,
-                    "result": project_result
-                })
-            except Exception as e:
-                logger.error(f"Failed to sync project {project_id}: {str(e)}")
-                results.append({
-                    "project_id": project_id,
+        # Process projects with concurrency control (2 workers max)
+        MAX_CONCURRENT_WORKERS = 2
+        semaphore = asyncio.Semaphore(MAX_CONCURRENT_WORKERS)
+        
+        async def sync_project_with_semaphore(project_id, index):
+            """Sync a single project with semaphore protection"""
+            async with semaphore:
+                # Update progress
+                progress = int((index / total_projects) * 100)
+                self.update_state(
+                    state="PROGRESS",
+                    meta={
+                        "current": progress,
+                        "total": 100,
+                        "status": f"Syncing project {index+1}/{total_projects}: {project_id}",
+                        "project_id": project_id,
+                        "completed": index,
+                        "total_projects": total_projects
+                    }
+                )
+                
+                # Sync individual project
+                try:
+                    project_result = sync_project_task.delay(project_id, force_sync).get()
+                    return {
+                        "project_id": project_id,
+                        "success": True,
+                        "result": project_result
+                    }
+                except Exception as e:
+                    logger.error(f"Failed to sync project {project_id}: {str(e)}")
+                    return {
+                        "project_id": project_id,
+                        "success": False,
+                        "error": str(e)
+                    }
+        
+        # Create tasks for all projects
+        tasks = [sync_project_with_semaphore(project_id, i) for i, project_id in enumerate(project_ids)]
+        
+        # Process all projects concurrently
+        logger.info(f"Launching {len(tasks)} concurrent project sync tasks with {MAX_CONCURRENT_WORKERS} worker limit")
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Handle any exceptions
+        processed_results = []
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.error(f"Task {i} failed with exception: {str(result)}")
+                processed_results.append({
+                    "project_id": project_ids[i],
                     "success": False,
-                    "error": str(e)
+                    "error": str(result)
                 })
+            else:
+                processed_results.append(result)
+        
+        results = processed_results
         
         # Final result
         successful_syncs = sum(1 for r in results if r["success"])

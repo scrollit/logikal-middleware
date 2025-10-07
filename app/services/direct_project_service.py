@@ -174,6 +174,44 @@ class DirectProjectService:
             logger.error(f"Failed to get phase with elevations {phase_id}: {str(e)}")
             return None
     
+    async def get_phase_with_elevations_by_project(self, project_id: str, phase_id: str) -> Optional[Dict]:
+        """Get phase with all its elevations using project context to avoid duplicate logikal_ids"""
+        try:
+            # First get the project to ensure it exists
+            project = self.db.query(Project).filter(
+                Project.logikal_id == project_id
+            ).first()
+            
+            if not project:
+                logger.warning(f"Project not found: {project_id}")
+                return None
+            
+            # Get the phase within this specific project
+            phase = self.db.query(Phase).filter(
+                Phase.logikal_id == phase_id,
+                Phase.project_id == project.id
+            ).first()
+            
+            if not phase:
+                logger.warning(f"Phase not found: {phase_id} in project {project_id}")
+                return None
+            
+            # Get elevations for this phase
+            elevations = self.db.query(Elevation).filter(
+                Elevation.phase_id == phase.id
+            ).all()
+            
+            logger.info(f"Retrieved phase: {phase.name} ({phase.logikal_id}) in project: {project.name} with {len(elevations)} elevations")
+            
+            return {
+                "phase": phase,
+                "elevations": elevations,
+                "elevations_count": len(elevations)
+            }
+        except Exception as e:
+            logger.error(f"Failed to get phase with elevations {phase_id} in project {project_id}: {str(e)}")
+            return None
+    
     async def get_elevation_by_id(self, elevation_id: str) -> Optional[Elevation]:
         """Get a specific elevation by its Logikal ID"""
         try:

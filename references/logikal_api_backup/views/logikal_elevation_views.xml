@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Logikal Elevation Tree View -->
+    <record id="view_logikal_elevation_tree" model="ir.ui.view">
+        <field name="name">logikal.elevation.tree</field>
+        <field name="model">logikal.elevation</field>
+        <field name="arch" type="xml">
+            <tree string="Logikal Elevations" decoration-info="sync_status == 'pending'" decoration-success="sync_status == 'synced'" decoration-danger="sync_status == 'error'">
+                <field name="name"/>
+                <field name="project_id"/>
+                <field name="phase_id"/>
+                <field name="description"/>
+                <field name="width"/>
+                <field name="height"/>
+                <field name="depth"/>
+                <field name="middleware_sync_date"/>
+                <field name="sync_status"/>
+                <field name="is_synced" invisible="1"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Logikal Elevation Form View -->
+    <record id="view_logikal_elevation_form" model="ir.ui.view">
+        <field name="name">logikal.elevation.form</field>
+        <field name="model">logikal.elevation</field>
+        <field name="arch" type="xml">
+            <form string="Logikal Elevation">
+                <header>
+                    <button name="action_view_thumbnail" type="object" string="View Thumbnail" class="btn-secondary" attrs="{'invisible': [('thumbnail_url', '=', False)]}"/>
+                    <field name="sync_status" widget="statusbar" statusbar_visible="pending,synced,error"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                        <h3>
+                            <field name="logikal_id" readonly="1"/>
+                        </h3>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="project_id"/>
+                            <field name="phase_id"/>
+                            <field name="description"/>
+                            <field name="is_synced"/>
+                        </group>
+                        <group>
+                            <field name="width"/>
+                            <field name="height"/>
+                            <field name="depth"/>
+                            <field name="thumbnail_url"/>
+                            <field name="created_at"/>
+                            <field name="updated_at"/>
+                            <field name="middleware_sync_date"/>
+                        </group>
+                    </group>
+                    <div class="oe_chatter">
+                        <field name="message_follower_ids"/>
+                        <field name="activity_ids"/>
+                        <field name="message_ids"/>
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Logikal Elevation Search View -->
+    <record id="view_logikal_elevation_search" model="ir.ui.view">
+        <field name="name">logikal.elevation.search</field>
+        <field name="model">logikal.elevation</field>
+        <field name="arch" type="xml">
+            <search string="Search Logikal Elevations">
+                <field name="name"/>
+                <field name="description"/>
+                <field name="project_id"/>
+                <field name="phase_id"/>
+                <field name="logikal_id"/>
+                <separator/>
+                <filter string="Synced" name="synced" domain="[('sync_status', '=', 'synced')]"/>
+                <filter string="Pending" name="pending" domain="[('sync_status', '=', 'pending')]"/>
+                <filter string="Error" name="error" domain="[('sync_status', '=', 'error')]"/>
+                <separator/>
+                <filter string="With Thumbnail" name="with_thumbnail" domain="[('thumbnail_url', '!=', False)]"/>
+                <separator/>
+                <group expand="0" string="Group By">
+                    <filter string="Project" name="group_project" domain="[]" context="{'group_by': 'project_id'}"/>
+                    <filter string="Phase" name="group_phase" domain="[]" context="{'group_by': 'phase_id'}"/>
+                    <filter string="Sync Status" name="group_sync_status" domain="[]" context="{'group_by': 'sync_status'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Logikal Elevation Action -->
+    <record id="action_logikal_elevation" model="ir.actions.act_window">
+        <field name="name">Logikal Elevations</field>
+        <field name="res_model">logikal.elevation</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_logikal_elevation_search"/>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No Logikal elevations found!
+            </p>
+            <p>
+                Elevations are automatically synchronized from the Logikal middleware.
+                Make sure projects and phases are synced first.
+            </p>
+        </field>
+    </record>
+
+    <!-- Logikal Elevation Menu -->
+    <menuitem id="menu_logikal_elevation" 
+              name="Elevations" 
+              parent="menu_logikal_main" 
+              action="action_logikal_elevation" 
+              sequence="30"/>
+</odoo>

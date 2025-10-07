@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Logikal Operations Form View -->
+    <record id="view_logikal_operations_form" model="ir.ui.view">
+        <field name="name">logikal.operations.form</field>
+        <field name="model">logikal.operations</field>
+        <field name="arch" type="xml">
+            <form string="Logikal Operations">
+                <header>
+                    <button name="action_test_connection" type="object" string="Test Connection" class="btn-primary"/>
+                    <button name="action_sync_all_projects" type="object" string="Sync All Projects" class="btn-secondary"/>
+                    <!-- <button name="action_sync_single_project" type="object" string="Sync Single Project" class="btn-secondary"/> -->
+                    <button name="action_switch_integration_mode" type="object" string="Switch Mode" class="btn-info"/>
+                    <button name="action_refresh_data" type="object" string="Refresh" class="btn-light"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="display_name" readonly="1"/>
+                        </h1>
+                    </div>
+                    
+                    <!-- Integration Mode and Status -->
+                    <group>
+                        <group>
+                            <field name="integration_mode"/>
+                            <field name="connection_status"/>
+                            <field name="last_connection_test"/>
+                        </group>
+                        <group>
+                            <field name="connection_status_message" widget="text"/>
+                            <field name="sync_status_message" widget="text"/>
+                            <field name="last_sync_time"/>
+                        </group>
+                    </group>
+                    
+                    <!-- Statistics -->
+                    <group>
+                        <group>
+                            <h3>Project Statistics</h3>
+                            <field name="total_projects"/>
+                            <field name="synced_projects"/>
+                            <field name="error_projects"/>
+                        </group>
+                        <group>
+                            <h3>Content Statistics</h3>
+                            <field name="total_phases"/>
+                            <field name="total_elevations"/>
+                        </group>
+                    </group>
+                    
+                    <!-- Quick Actions -->
+                    <group>
+                        <div class="text-muted content-group mt16">
+                            <div class="alert alert-info">
+                                <p><strong>Integration Mode:</strong> <field name="integration_mode" readonly="1"/></p>
+                                <p><strong>Configuration:</strong> Go to Settings → General Settings → Logikal API to configure connection parameters.</p>
+                                <p><strong>View Data:</strong> Use the navigation menu to access Projects, Phases, Elevations, and Session Logs.</p>
+                            </div>
+                            <button name="action_cleanup_session_logs" type="object" string="Cleanup Old Logs" class="btn btn-secondary"/>
+                            <button name="action_view_projects" type="object" string="View Projects" class="btn btn-primary"/>
+                            <button name="action_view_session_logs" type="object" string="View Session Logs" class="btn btn-info"/>
+                        </div>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Logikal Operations Action -->
+    <record id="action_logikal_operations" model="ir.actions.act_window">
+        <field name="name">Logikal Operations</field>
+        <field name="res_model">logikal.operations</field>
+        <field name="view_mode">form</field>
+        <field name="target">current</field>
+        <field name="context">{}</field>
+    </record>
+
+    <!-- Logikal Operations Menu -->
+    <menuitem id="menu_logikal_operations" 
+              name="Operations Console" 
+              parent="menu_logikal_main" 
+              action="action_logikal_operations" 
+              sequence="5"/>
+
+    <!-- Sync Project Wizard - Temporarily disabled for installation -->
+    <!-- 
+    <record id="view_logikal_sync_project_wizard_form" model="ir.ui.view">
+        <field name="name">logikal.sync.project.wizard.form</field>
+        <field name="model">logikal.sync.project.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Sync Single Project">
+                <group>
+                    <field name="project_id" options="{'no_create': True, 'no_open': True}"/>
+                </group>
+                <footer>
+                    <button name="action_sync_project" type="object" string="Sync Project" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_logikal_sync_project_wizard" model="ir.actions.act_window">
+        <field name="name">Sync Single Project</field>
+        <field name="res_model">logikal.sync.project.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+    -->
+</odoo>

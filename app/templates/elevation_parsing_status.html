@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elevation Parsing Status</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Parsing status styling */
+        .parsing-status {
+            display: inline-block;
+            margin: 2px;
+        }
+
+        .parsing-status .badge {
+            font-size: 0.75rem;
+            padding: 0.375rem 0.75rem;
+        }
+
+        .parsing-status .fa-spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Status card styling */
+        .parts-status-card {
+            margin-bottom: 1rem;
+        }
+
+        .parts-status-card .card-header {
+            font-weight: 600;
+        }
+
+        .parts-status-card .card-title {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Action buttons */
+        .parsing-actions {
+            margin-top: 0.5rem;
+        }
+
+        .parsing-actions .btn {
+            margin-right: 0.25rem;
+            margin-bottom: 0.25rem;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .parsing-status .badge {
+                font-size: 0.7rem;
+                padding: 0.25rem 0.5rem;
+            }
+            
+            .parsing-actions .btn {
+                font-size: 0.8rem;
+                padding: 0.25rem 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1>Elevation Parsing Status</h1>
+        
+        <!-- Global Status Summary -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5>Global Parsing Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="global-status">
+                            <div class="d-flex justify-content-center">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Elevations List -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5>Elevations with Parts Data</h5>
+                        <button class="btn btn-primary btn-sm" onclick="refreshElevations()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="elevations-list">
+                            <div class="d-flex justify-content-center">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Parsing Status Manager
+        class ParsingStatusManager {
+            constructor() {
+                this.baseUrl = '/api/v1';
+                this.init();
+            }
+
+            async init() {
+                await this.loadGlobalStatus();
+                await this.loadElevations();
+            }
+
+            async loadGlobalStatus() {
+                try {
+                    const response = await fetch(`${this.baseUrl}/elevations/enrichment/status`);
+                    const data = await response.json();
+                    
+                    const statusHtml = `
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4>${data.total_elevations}</h4>
+                                    <small class="text-muted">Total Elevations</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4>${data.elevations_with_parts}</h4>
+                                    <small class="text-muted">With Parts Data</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-success">${data.parse_status_summary.success || 0}</h4>
+                                    <small class="text-muted">Successfully Parsed</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-center">
+                                    <h4 class="text-info">${data.enrichment_rate}%</h4>
+                                    <small class="text-muted">Enrichment Rate</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <h6>Parse Status Breakdown:</h6>
+                            <div class="d-flex flex-wrap gap-2">
+                                ${Object.entries(data.parse_status_summary).map(([status, count]) => 
+                                    `<span class="badge bg-${this.getStatusColor(status)}">${status}: ${count}</span>`
+                                ).join('')}
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.getElementById('global-status').innerHTML = statusHtml;
+                } catch (error) {
+                    console.error('Error loading global status:', error);
+                    document.getElementById('global-status').innerHTML = 
+                        '<div class="alert alert-danger">Failed to load global status</div>';
+                }
+            }
+
+            async loadElevations() {
+                try {
+                    const response = await fetch(`${this.baseUrl}/elevations/cached`);
+                    const data = await response.json();
+                    
+                    const elevationsWithParts = data.data.filter(e => e.has_parts_data);
+                    
+                    const listHtml = `
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Project</th>
+                                        <th>Phase</th>
+                                        <th>Parts Status</th>
+                                        <th>Last Updated</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${elevationsWithParts.map(elevation => `
+                                        <tr data-elevation-id="${elevation.id}">
+                                            <td>${elevation.name}</td>
+                                            <td>${elevation.project_name}</td>
+                                            <td>${elevation.phase_name}</td>
+                                            <td class="parsing-status">
+                                                ${this.renderStatusBadge(elevation)}
+                                            </td>
+                                            <td>${elevation.updated_at ? new Date(elevation.updated_at).toLocaleDateString() : 'N/A'}</td>
+                                            <td>
+                                                ${this.renderActionButtons(elevation)}
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    
+                    document.getElementById('elevations-list').innerHTML = listHtml;
+                } catch (error) {
+                    console.error('Error loading elevations:', error);
+                    document.getElementById('elevations-list').innerHTML = 
+                        '<div class="alert alert-danger">Failed to load elevations</div>';
+                }
+            }
+
+            renderStatusBadge(elevation) {
+                const status = this.getStatusConfig(elevation.parse_status, elevation.has_parts_data);
+                return `
+                    <span class="badge bg-${status.color}" data-bs-toggle="tooltip" 
+                          title="${status.description}">
+                        <i class="${status.icon}"></i> ${status.text}
+                    </span>
+                `;
+            }
+
+            renderActionButtons(elevation) {
+                const buttons = [];
+                
+                if (elevation.parse_status === 'pending' || elevation.parse_status === 'failed') {
+                    buttons.push(`
+                        <button class="btn btn-success btn-sm" onclick="triggerParsing(${elevation.id})">
+                            <i class="fas fa-play"></i> Parse
+                        </button>
+                    `);
+                }
+                
+                if (elevation.parse_status === 'success') {
+                    buttons.push(`
+                        <button class="btn btn-info btn-sm" onclick="viewEnrichedData(${elevation.id})">
+                            <i class="fas fa-eye"></i> View Data
+                        </button>
+                    `);
+                }
+                
+                if (elevation.parse_status === 'failed') {
+                    buttons.push(`
+                        <button class="btn btn-warning btn-sm" onclick="viewErrorLog(${elevation.id})">
+                            <i class="fas fa-bug"></i> View Error
+                        </button>
+                    `);
+                }
+                
+                return buttons.join(' ');
+            }
+
+            getStatusConfig(status, hasPartsData) {
+                if (!hasPartsData) {
+                    return {
+                        text: 'No Parts Data',
+                        color: 'light',
+                        icon: 'fas fa-minus-circle',
+                        description: 'No parts list available for this elevation'
+                    };
+                }
+
+                const configs = {
+                    'pending': { 
+                        text: 'Not Parsed', 
+                        color: 'secondary', 
+                        icon: 'fas fa-clock',
+                        description: 'Parts list available but not yet parsed'
+                    },
+                    'in_progress': { 
+                        text: 'In Progress', 
+                        color: 'warning', 
+                        icon: 'fas fa-spinner fa-spin',
+                        description: 'Currently parsing parts data'
+                    },
+                    'success': { 
+                        text: 'Parsed', 
+                        color: 'success', 
+                        icon: 'fas fa-check-circle',
+                        description: 'Parts data successfully parsed and enriched'
+                    },
+                    'failed': { 
+                        text: 'Parse Failed', 
+                        color: 'danger', 
+                        icon: 'fas fa-exclamation-triangle',
+                        description: 'Failed to parse parts data'
+                    },
+                    'validation_failed': { 
+                        text: 'Invalid File', 
+                        color: 'danger', 
+                        icon: 'fas fa-file-exclamation',
+                        description: 'SQLite file validation failed'
+                    }
+                };
+                return configs[status] || configs['pending'];
+            }
+
+            getStatusColor(status) {
+                const colors = {
+                    'pending': 'secondary',
+                    'in_progress': 'warning',
+                    'success': 'success',
+                    'failed': 'danger',
+                    'validation_failed': 'danger'
+                };
+                return colors[status] || 'secondary';
+            }
+
+            async triggerParsing(elevationId) {
+                try {
+                    const response = await fetch(`${this.baseUrl}/elevations/${elevationId}/enrichment/trigger`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.showNotification('Parsing triggered successfully', 'success');
+                        this.updateStatusIndicator(elevationId, 'in_progress');
+                    } else {
+                        this.showNotification(result.message || 'Failed to trigger parsing', 'error');
+                    }
+                } catch (error) {
+                    this.showNotification('Error triggering parsing', 'error');
+                    console.error('Parsing trigger error:', error);
+                }
+            }
+
+            updateStatusIndicator(elevationId, status) {
+                const row = document.querySelector(`tr[data-elevation-id="${elevationId}"]`);
+                if (row) {
+                    const statusCell = row.querySelector('.parsing-status');
+                    if (statusCell) {
+                        const statusConfig = this.getStatusConfig(status, true);
+                        statusCell.innerHTML = `
+                            <span class="badge bg-${statusConfig.color}" data-bs-toggle="tooltip" 
+                                  title="${statusConfig.description}">
+                                <i class="${statusConfig.icon}"></i> ${statusConfig.text}
+                            </span>
+                        `;
+                    }
+                }
+            }
+
+            showNotification(message, type) {
+                // Simple notification - could be enhanced with toast notifications
+                const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+                const notification = document.createElement('div');
+                notification.className = `alert ${alertClass} alert-dismissible fade show position-fixed`;
+                notification.style.top = '20px';
+                notification.style.right = '20px';
+                notification.style.zIndex = '9999';
+                notification.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                document.body.appendChild(notification);
+                
+                // Auto-remove after 5 seconds
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 5000);
+            }
+        }
+
+        // Initialize the manager
+        const parsingManager = new ParsingStatusManager();
+
+        // Global functions for onclick handlers
+        function triggerParsing(elevationId) {
+            parsingManager.triggerParsing(elevationId);
+        }
+
+        function viewEnrichedData(elevationId) {
+            // Open enriched data in new window/tab
+            window.open(`${parsingManager.baseUrl}/elevations/${elevationId}`, '_blank');
+        }
+
+        function viewErrorLog(elevationId) {
+            // Open error log - could be a modal or separate page
+            alert(`Error log for elevation ${elevationId} - Implementation needed`);
+        }
+
+        function refreshElevations() {
+            parsingManager.init();
+        }
+
+        // Initialize tooltips
+        document.addEventListener('DOMContentLoaded', function () {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+    </script>
+</body>
+</html>

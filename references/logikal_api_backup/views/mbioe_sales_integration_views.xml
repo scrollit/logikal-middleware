@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- MBIOE Sales Integration List View -->
+    <record id="view_mbioe_sales_integration_list" model="ir.ui.view">
+        <field name="name">mbioe.sales.integration.list</field>
+        <field name="model">mbioe.sales.integration</field>
+        <field name="arch" type="xml">
+            <list string="MBIOE Sales Integrations" create="false" edit="false">
+                <field name="import_date"/>
+                <field name="order_name"/>
+                <field name="project_name"/>
+                <field name="import_state" widget="badge"
+                       decoration-success="import_state == 'imported'"
+                       decoration-danger="import_state == 'error'"
+                       decoration-info="import_state == 'draft'"/>
+                <field name="imported_phases"/>
+                <field name="imported_elevations"/>
+                <field name="total_lines_created"/>
+                <field name="success_rate" widget="progressbar"/>
+                
+                <!-- Action buttons -->
+                <button name="action_view_sales_order" type="object" 
+                        icon="fa-external-link" title="View Sales Order"/>
+                <button name="action_view_project" type="object" 
+                        icon="fa-folder-open" title="View MBIOE Project"/>
+            </list>
+        </field>
+    </record>
+    
+    <!-- MBIOE Sales Integration Form View -->
+    <record id="view_mbioe_sales_integration_form" model="ir.ui.view">
+        <field name="name">mbioe.sales.integration.form</field>
+        <field name="model">mbioe.sales.integration</field>
+        <field name="arch" type="xml">
+            <form string="MBIOE Sales Integration" create="false" edit="false">
+                <header>
+                    <field name="import_state" widget="statusbar"/>
+                </header>
+                
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    
+                    <group>
+                        <group string="Integration Details">
+                            <field name="sales_order_id" readonly="1"/>
+                            <field name="mbioe_project_id" readonly="1"/>
+                            <field name="import_date" readonly="1"/>
+                        </group>
+                        
+                        <group string="Import Results">
+                            <field name="imported_phases" readonly="1"/>
+                            <field name="imported_elevations" readonly="1"/>
+                            <field name="total_lines_created" readonly="1"/>
+                            <field name="success_rate" widget="progressbar" readonly="1"/>
+                        </group>
+                    </group>
+                    
+                    <notebook>
+                        <page string="Import Errors" 
+                              invisible="not import_errors">
+                            <field name="import_errors" readonly="1" widget="text"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- MBIOE Sales Integration Search View -->
+    <record id="view_mbioe_sales_integration_search" model="ir.ui.view">
+        <field name="name">mbioe.sales.integration.search</field>
+        <field name="model">mbioe.sales.integration</field>
+        <field name="arch" type="xml">
+            <search string="Search MBIOE Sales Integrations">
+                <field name="name"/>
+                <field name="order_name"/>
+                <field name="project_name"/>
+                
+                <filter string="Successful Imports" name="successful"
+                        domain="[('import_state', '=', 'imported')]"/>
+                <filter string="Failed Imports" name="failed"
+                        domain="[('import_state', '=', 'error')]"/>
+                <filter string="This Month" name="this_month"
+                        domain="[('import_date', '>=', (context_today() - relativedelta(months=1)).strftime('%Y-%m-01'))]"/>
+                
+                <group expand="0" string="Group By">
+                    <filter string="Import State" name="group_by_state"
+                            domain="[]" context="{'group_by': 'import_state'}"/>
+                    <filter string="Project" name="group_by_project"
+                            domain="[]" context="{'group_by': 'mbioe_project_id'}"/>
+                    <filter string="Import Date" name="group_by_date"
+                            domain="[]" context="{'group_by': 'import_date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    
+    <!-- MBIOE Import Configuration List View -->
+    <record id="view_mbioe_import_config_list" model="ir.ui.view">
+        <field name="name">mbioe.import.config.list</field>
+        <field name="model">mbioe.import.config</field>
+        <field name="arch" type="xml">
+            <list string="MBIOE Import Configurations" create="true" edit="true">
+                <field name="name"/>
+                <field name="active" widget="boolean_toggle"/>
+                <field name="auto_create_products" widget="boolean_toggle"/>
+                <field name="use_mbioe_pricing" widget="boolean_toggle"/>
+                <field name="clear_existing_on_reimport" widget="boolean_toggle"/>
+                <field name="product_category_id"/>
+            </list>
+        </field>
+    </record>
+    
+    <!-- MBIOE Import Configuration Form View -->
+    <record id="view_mbioe_import_config_form" model="ir.ui.view">
+        <field name="name">mbioe.import.config.form</field>
+        <field name="model">mbioe.import.config</field>
+        <field name="arch" type="xml">
+            <form string="MBIOE Import Configuration">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Configuration Name"/>
+                        </h1>
+                    </div>
+                    
+                    <group>
+                        <field name="active"/>
+                    </group>
+                    
+                    <notebook>
+                        <page string="Product Settings" name="product_settings">
+                            <group>
+                                <group string="Product Creation">
+                                    <field name="auto_create_products"/>
+                                    <field name="product_category_id"
+                                           required="auto_create_products"
+                                           invisible="not auto_create_products"/>
+                                </group>
+                                
+                                <group string="Product Templates">
+                                    <field name="product_name_template"
+                                           invisible="not auto_create_products"/>
+                                    <field name="product_code_template"
+                                           invisible="not auto_create_products"/>
+                                </group>
+                            </group>
+                        </page>
+                        
+                        <page string="Pricing Settings" name="pricing_settings">
+                            <group>
+                                <group string="Price Configuration">
+                                    <field name="use_mbioe_pricing"/>
+                                    <field name="default_price_when_missing"/>
+                                </group>
+                            </group>
+                        </page>
+                        
+                        <page string="Import Behavior" name="import_behavior">
+                            <group>
+                                <group string="Import Settings">
+                                    <field name="clear_existing_on_reimport"/>
+                                    <field name="import_sequence_increment"/>
+                                </group>
+                                
+                                <group string="Display Templates">
+                                    <field name="section_name_template"/>
+                                </group>
+                            </group>
+                            
+                            <group string="Elevation Description Template" col="1">
+                                <field name="elevation_description_template" 
+                                       widget="text" nolabel="1"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+</odoo>

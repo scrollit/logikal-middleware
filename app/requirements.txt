@@ -6,6 +6,7 @@ python-dotenv
 pydantic-settings
 redis
 aiohttp
+aiofiles
 alembic
 PyJWT[crypto]
 python-jose[cryptography]
@@ -15,5 +16,3 @@ flower
 prometheus-client
 structlog
 psutil
-aiohttp
-pydantic-settings

@@ -22,6 +22,10 @@ class ProjectResponse(ProjectBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    last_sync_date: Optional[datetime] = None
+    last_update_date: Optional[datetime] = None
+    directory_name: Optional[str] = None
+    is_stale: Optional[bool] = None
     
     class Config:
         from_attributes = True
@@ -32,3 +36,6 @@ class ProjectListResponse(BaseModel):
     success: bool = True
     data: List[ProjectResponse]
     count: int
+    last_updated: Optional[str] = None
+    sync_status: Optional[str] = None
+    stale_count: Optional[int] = None

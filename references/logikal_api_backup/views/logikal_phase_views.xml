@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Logikal Phase Tree View -->
+    <record id="view_logikal_phase_tree" model="ir.ui.view">
+        <field name="name">logikal.phase.tree</field>
+        <field name="model">logikal.phase</field>
+        <field name="arch" type="xml">
+            <tree string="Logikal Phases" decoration-info="sync_status == 'pending'" decoration-success="sync_status == 'synced'" decoration-danger="sync_status == 'error'">
+                <field name="name"/>
+                <field name="project_id"/>
+                <field name="description"/>
+                <field name="status"/>
+                <field name="elevation_count"/>
+                <field name="middleware_sync_date"/>
+                <field name="sync_status"/>
+                <field name="is_synced" invisible="1"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Logikal Phase Form View -->
+    <record id="view_logikal_phase_form" model="ir.ui.view">
+        <field name="name">logikal.phase.form</field>
+        <field name="model">logikal.phase</field>
+        <field name="arch" type="xml">
+            <form string="Logikal Phase">
+                <header>
+                    <field name="sync_status" widget="statusbar" statusbar_visible="pending,synced,error"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_elevations" type="object" class="oe_stat_button" icon="fa-image">
+                            <field name="elevation_count" widget="statinfo" string="Elevations"/>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                        <h3>
+                            <field name="logikal_id" readonly="1"/>
+                        </h3>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="project_id"/>
+                            <field name="description"/>
+                            <field name="status"/>
+                            <field name="is_synced"/>
+                        </group>
+                        <group>
+                            <field name="created_at"/>
+                            <field name="updated_at"/>
+                            <field name="middleware_sync_date"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Elevations" name="elevations">
+                            <field name="elevation_ids" readonly="1">
+                                <tree string="Elevations">
+                                    <field name="name"/>
+                                    <field name="description"/>
+                                    <field name="width"/>
+                                    <field name="height"/>
+                                    <field name="depth"/>
+                                    <field name="thumbnail_url"/>
+                                    <field name="middleware_sync_date"/>
+                                    <field name="sync_status"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Logikal Phase Search View -->
+    <record id="view_logikal_phase_search" model="ir.ui.view">
+        <field name="name">logikal.phase.search</field>
+        <field name="model">logikal.phase</field>
+        <field name="arch" type="xml">
+            <search string="Search Logikal Phases">
+                <field name="name"/>
+                <field name="description"/>
+                <field name="status"/>
+                <field name="project_id"/>
+                <field name="logikal_id"/>
+                <separator/>
+                <filter string="Synced" name="synced" domain="[('sync_status', '=', 'synced')]"/>
+                <filter string="Pending" name="pending" domain="[('sync_status', '=', 'pending')]"/>
+                <filter string="Error" name="error" domain="[('sync_status', '=', 'error')]"/>
+                <separator/>
+                <filter string="With Elevations" name="with_elevations" domain="[('elevation_count', '>', 0)]"/>
+                <separator/>
+                <group expand="0" string="Group By">
+                    <filter string="Project" name="group_project" domain="[]" context="{'group_by': 'project_id'}"/>
+                    <filter string="Status" name="group_status" domain="[]" context="{'group_by': 'status'}"/>
+                    <filter string="Sync Status" name="group_sync_status" domain="[]" context="{'group_by': 'sync_status'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Logikal Phase Action -->
+    <record id="action_logikal_phase" model="ir.actions.act_window">
+        <field name="name">Logikal Phases</field>
+        <field name="res_model">logikal.phase</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_logikal_phase_search"/>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No Logikal phases found!
+            </p>
+            <p>
+                Phases are automatically synchronized from the Logikal middleware.
+                Make sure projects are synced first.
+            </p>
+        </field>
+    </record>
+
+    <!-- Logikal Phase Menu -->
+    <menuitem id="menu_logikal_phase" 
+              name="Phases" 
+              parent="menu_logikal_main" 
+              action="action_logikal_phase" 
+              sequence="20"/>
+</odoo>

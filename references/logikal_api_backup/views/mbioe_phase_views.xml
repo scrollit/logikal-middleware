@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    
+    <!-- Phase List View -->
+    <record id="view_mbioe_phase_list" model="ir.ui.view">
+        <field name="name">mbioe.project.phase.list</field>
+        <field name="model">mbioe.project.phase</field>
+        <field name="arch" type="xml">
+            <list string="Project Phases" create="false" edit="false" delete="false">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="project_name"/>
+                <field name="description"/>
+                <field name="elevation_count"/>
+                <field name="sync_status" widget="badge" 
+                       decoration-success="sync_status == 'unchanged'"
+                       decoration-info="sync_status == 'new'"
+                       decoration-warning="sync_status == 'updated'"
+                       decoration-danger="sync_status == 'error'"/>
+                <field name="days_since_sync"/>
+                <field name="synced_at"/>
+                
+                <!-- Action buttons -->
+                <button name="action_view_elevations" type="object" 
+                        icon="fa-image" title="View Elevations"
+                        invisible="elevation_count == 0"/>
+                <button name="action_view_project" type="object" 
+                        icon="fa-folder-open" title="View Project"/>
+            </list>
+        </field>
+    </record>
+    
+    <!-- Phase Form View -->
+    <record id="view_mbioe_phase_form" model="ir.ui.view">
+        <field name="name">mbioe.project.phase.form</field>
+        <field name="model">mbioe.project.phase</field>
+        <field name="arch" type="xml">
+            <form string="Project Phase" create="false" edit="false" delete="false">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <!-- Smart buttons -->
+                        <button name="action_view_project" type="object" 
+                                class="oe_stat_button" icon="fa-folder-open">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">View</span>
+                                <span class="o_stat_text">Project</span>
+                            </div>
+                        </button>
+                        
+                        <button name="action_view_elevations" type="object" 
+                                class="oe_stat_button" icon="fa-image"
+                                invisible="elevation_count == 0">
+                            <field name="elevation_count" widget="statinfo" 
+                                   string="Elevations"/>
+                        </button>
+                    </div>
+                    
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Phase Name"/>
+                        </h1>
+                        <h2>
+                            <field name="project_name" readonly="1"/>
+                        </h2>
+                    </div>
+                    
+                    <group>
+                        <group name="phase_info" string="Phase Information">
+                            <field name="identifier"/>
+                            <field name="sequence"/>
+                            <field name="description" widget="text"/>
+                        </group>
+                        
+                        <group name="sync_info" string="Synchronization">
+                            <field name="sync_status" widget="badge"
+                                   decoration-success="sync_status == 'unchanged'"
+                                   decoration-info="sync_status == 'new'"
+                                   decoration-warning="sync_status == 'updated'"
+                                   decoration-danger="sync_status == 'error'"/>
+                            <field name="days_since_sync"/>
+                            <field name="needs_sync" widget="boolean_toggle"/>
+                            <field name="synced_at"/>
+                            <field name="last_api_sync"/>
+                        </group>
+                    </group>
+                    
+                    <group name="metadata" string="Metadata">
+                        <group>
+                            <field name="api_created_date"/>
+                            <field name="api_changed_date"/>
+                            <field name="api_source"/>
+                        </group>
+                        <group>
+                            <field name="imported"/>
+                            <field name="folder_path"/>
+                        </group>
+                    </group>
+                    
+                    <!-- Elevations Section -->
+                    <notebook invisible="elevation_count == 0">
+                        <page string="Elevations" name="elevations">
+                            <field name="elevation_ids" readonly="1">
+                                <list create="false" edit="false" delete="false">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="thumbnail" widget="image" width="64px" height="64px"/>
+                                    <field name="name"/>
+                                    <field name="elevation_type"/>
+                                    <field name="state"/>
+                                    <field name="width"/>
+                                    <field name="height"/>
+                                    <field name="area"/>
+                                    <field name="quotation_price" widget="monetary" options="{'currency_field': 'currency_id'}"/>
+                                    <field name="currency_id" invisible="1"/>
+                                    <field name="sync_status" widget="badge"
+                                           decoration-success="sync_status == 'unchanged'"
+                                           decoration-info="sync_status == 'new'"
+                                           decoration-warning="sync_status == 'updated'"
+                                           decoration-danger="sync_status == 'error'"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                    
+                </sheet>
+            </form>
+        </field>
+    </record>
+    
+    <!-- Phase Search View -->
+    <record id="view_mbioe_phase_search" model="ir.ui.view">
+        <field name="name">mbioe.project.phase.search</field>
+        <field name="model">mbioe.project.phase</field>
+        <field name="arch" type="xml">
+            <search string="Search Phases">
+                <field name="name" string="Phase" 
+                       filter_domain="[('name', 'ilike', self)]"/>
+                <field name="project_name" string="Project"
+                       filter_domain="[('project_name', 'ilike', self)]"/>
+                <field name="description"/>
+                
+                <separator/>
+                
+                <!-- Filters -->
+                <filter name="filter_needs_sync" string="Needs Sync"
+                        domain="[('needs_sync', '=', True)]"/>
+                
+                <separator/>
+                
+                <filter name="filter_sync_new" string="New"
+                        domain="[('sync_status', '=', 'new')]"/>
+                <filter name="filter_sync_updated" string="Updated"
+                        domain="[('sync_status', '=', 'updated')]"/>
+                <filter name="filter_sync_unchanged" string="Unchanged"
+                        domain="[('sync_status', '=', 'unchanged')]"/>
+                <filter name="filter_sync_error" string="Sync Error"
+                        domain="[('sync_status', '=', 'error')]"/>
+                
+                <separator/>
+                
+                <!-- Group By -->
+                <group expand="0" string="Group By">
+                    <filter name="group_by_project" string="Project"
+                            context="{'group_by': 'project_id'}"/>
+                    <filter name="group_by_sync_status" string="Sync Status"
+                            context="{'group_by': 'sync_status'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+</odoo>

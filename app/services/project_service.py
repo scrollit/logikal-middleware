@@ -116,8 +116,8 @@ class ProjectService:
                 # Track navigation state
                 self.current_project = project_identifier
                 
-                # Clear cached data when project changes
-                await self._clear_cached_data()
+                # Clear cached data when project changes - DISABLED to prevent sync data loss
+                # await self._clear_cached_data()
                 
                 # Log successful operation
                 await self._log_api_call(
@@ -244,8 +244,8 @@ class ProjectService:
             )
             
             self.db.add(api_log)
-            self.db.commit()
+            # DO NOT commit or rollback - let the main transaction handle it
             
         except Exception as e:
             logger.error(f"Failed to log API call: {str(e)}")
-            self.db.rollback()
+            # DO NOT rollback - let the main transaction handle it
