@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import validator
 from typing import Optional
 import os
 
@@ -29,6 +30,16 @@ class Settings(BaseSettings):
     
     # API Configuration
     API_V1_STR: str = "/api/v1"
+    
+    @validator("DATABASE_URL", pre=True)
+    def fix_database_url(cls, v):
+        """
+        Fix DATABASE_URL format for DigitalOcean compatibility.
+        DigitalOcean provides postgres:// but SQLAlchemy 1.4+ requires postgresql://
+        """
+        if v and isinstance(v, str) and v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql://", 1)
+        return v
     
     class Config:
         env_file = ".env.docker"
