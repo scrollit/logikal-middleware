@@ -11,7 +11,10 @@ import sys
 import logging
 import time
 import subprocess
+import signal
+import threading
 from pathlib import Path
+from multiprocessing import Process
 
 # Add the app directory to Python path
 app_dir = Path(__file__).parent
@@ -95,10 +98,72 @@ def validate_environment():
     return True
 
 
+def start_celery_worker():
+    """
+    Start Celery worker process
+    """
+    logger.info("Starting Celery worker...")
+    
+    cmd = [
+        sys.executable, "-m", "celery", "-A", "celery_app", 
+        "worker", "--loglevel=info"
+    ]
+    
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Celery worker failed: {e}")
+    except KeyboardInterrupt:
+        logger.info("Celery worker stopped")
+
+
+def start_celery_beat():
+    """
+    Start Celery beat scheduler process
+    """
+    logger.info("Starting Celery beat scheduler...")
+    
+    cmd = [
+        sys.executable, "-m", "celery", "-A", "celery_app", 
+        "beat", "--loglevel=info"
+    ]
+    
+    try:
+        subprocess.run(cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Celery beat failed: {e}")
+    except KeyboardInterrupt:
+        logger.info("Celery beat stopped")
+
+
 def start_application():
     """
-    Start the FastAPI application
+    Start the FastAPI application with Celery services
     """
+    logger.info("Starting Logikal Middleware with Celery services...")
+    
+    # Check if background sync is enabled
+    background_sync_enabled = os.getenv("BACKGROUND_SYNC_ENABLED", "false").lower() == "true"
+    
+    if background_sync_enabled:
+        logger.info("Background sync is enabled, starting Celery services...")
+        
+        # Start Celery worker in a separate process
+        worker_process = Process(target=start_celery_worker)
+        worker_process.start()
+        logger.info(f"Started Celery worker process (PID: {worker_process.pid})")
+        
+        # Start Celery beat in a separate process
+        beat_process = Process(target=start_celery_beat)
+        beat_process.start()
+        logger.info(f"Started Celery beat process (PID: {beat_process.pid})")
+        
+        # Give Celery services time to start
+        time.sleep(5)
+    else:
+        logger.info("Background sync is disabled, skipping Celery services")
+    
+    # Start the web server
     logger.info("Starting FastAPI application...")
     
     # Get port from environment or use default
@@ -120,7 +185,7 @@ def start_application():
     logger.info(f"Starting server with command: {' '.join(cmd)}")
     
     try:
-        # Start the server
+        # Start the server (this will block)
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as e:
         logger.error(f"Failed to start application: {e}")

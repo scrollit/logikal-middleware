@@ -1,12 +1,11 @@
 name: logikal-middleware
 services:
-- name: web
+- name: logikal-middleware
   source_dir: /app
   github:
     repo: scrollit/logikal-middleware
     branch: main
   run_command: python startup.py
-  environment_slug: python
   instance_count: 1
   instance_size_slug: basic-xxs
   http_port: 8000
@@ -54,15 +53,12 @@ services:
     value: "1000"
   - key: RATE_LIMIT_PER_HOUR
     value: "10000"
+  - key: BACKGROUND_SYNC_ENABLED
+    value: "true"
+  - key: SYNC_INTERVAL_SECONDS
+    value: "300"
   health_check:
     http_path: /api/v1/health
-  routes:
-  - path: /
-  - path: /ui
-  - path: /api
-  - path: /docs
-  - path: /redoc
-  - path: /metrics
 
 databases:
 - name: logikal-db
