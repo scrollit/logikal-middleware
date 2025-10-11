@@ -292,3 +292,5 @@ class ConnectionErrorHandler:
         """Calculate retry delay with exponential backoff"""
         return min(base_delay * (2 ** retry_count), 60.0)  # Max 60 seconds
 
+
+

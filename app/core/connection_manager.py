@@ -301,3 +301,5 @@ def get_global_connection_pool() -> ConnectionPool:
         _global_pool = ConnectionPool()
     return _global_pool
 
+
+
