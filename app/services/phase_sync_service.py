@@ -227,7 +227,31 @@ class PhaseSyncService:
                     last_update_date=last_update_date
                 )
                 db.add(new_phase)
-                db.commit()
+                
+                try:
+                    db.commit()
+                except Exception as commit_error:
+                    # Handle unique constraint violations gracefully
+                    if "UniqueViolation" in str(commit_error) or "duplicate key" in str(commit_error).lower():
+                        logger.warning(f"Unique constraint violation for phase {name} (ID: {identifier}) - checking if it already exists")
+                        db.rollback()
+                        
+                        # Check if a phase with this logikal_id already exists for this project
+                        existing_phase = db.query(Phase).filter(
+                            Phase.project_id == project_id,
+                            Phase.logikal_id == identifier
+                        ).first()
+                        
+                        if existing_phase:
+                            logger.info(f"Phase already exists: {name} (ID: {identifier}) for project {project_id} - returning existing")
+                            return existing_phase
+                        else:
+                            # This shouldn't happen, but handle it gracefully
+                            logger.error(f"Unique constraint violation but phase not found: {name} (ID: {identifier}) for project {project_id}")
+                            raise commit_error
+                    else:
+                        # Re-raise non-constraint errors
+                        raise commit_error
                 
                 # Verify the phase was actually saved using composite key (project_id, logikal_id)
                 saved_phase = db.query(Phase).filter(
