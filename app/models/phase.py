@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from core.database import Base
@@ -9,7 +9,7 @@ class Phase(Base):
     __tablename__ = "phases"
     
     id = Column(Integer, primary_key=True, index=True)
-    logikal_id = Column(String(255), unique=True, nullable=False, index=True)
+    logikal_id = Column(String(255), nullable=True, index=True)  # Allow null values
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
@@ -25,6 +25,11 @@ class Phase(Base):
     
     # Relationships
     project = relationship("Project", backref="phases")
+    
+    # Composite unique constraint: allow multiple null logikal_ids but ensure uniqueness when combined with project_id
+    __table_args__ = (
+        UniqueConstraint('logikal_id', 'project_id', name='uq_phase_logikal_project'),
+    )
     
     def __repr__(self):
         return f"<Phase(id={self.id}, name='{self.name}', logikal_id='{self.logikal_id}')>"
