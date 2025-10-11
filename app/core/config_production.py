@@ -100,6 +100,16 @@ class ProductionSettings(BaseSettings):
     HEALTH_CHECK_INTERVAL: int = 30
     HEALTH_CHECK_TIMEOUT: int = 5
     
+    @validator("DATABASE_URL", pre=True)
+    def fix_database_url(cls, v):
+        """
+        Fix DATABASE_URL format for DigitalOcean compatibility.
+        DigitalOcean provides postgres:// but SQLAlchemy 1.4+ requires postgresql://
+        """
+        if v and v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql://", 1)
+        return v
+    
     @validator("CORS_ORIGINS", pre=True)
     def parse_cors_origins(cls, v):
         if v is None:

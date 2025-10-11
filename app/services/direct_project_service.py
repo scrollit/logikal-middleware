@@ -15,11 +15,39 @@ class DirectProjectService:
     def __init__(self, db: Session):
         self.db = db
     
-    async def get_all_projects(self) -> List[Project]:
-        """Get all projects from database (no directory context needed)"""
+    async def get_all_projects(self, include_excluded_directories: bool = False) -> List[Project]:
+        """Get all projects from database (no directory context needed)
+        
+        Args:
+            include_excluded_directories: If False (default), filters out projects 
+                                         from directories marked as exclude_from_sync
+        
+        Returns:
+            List of Project objects (filtered by directory exclusion if applicable)
+        """
         try:
-            projects = self.db.query(Project).all()
-            logger.info(f"Retrieved {len(projects)} projects from database")
+            from models.directory import Directory
+            
+            if include_excluded_directories:
+                # Return all projects regardless of directory exclusion
+                projects = self.db.query(Project).all()
+                logger.info(f"Retrieved {len(projects)} projects from database (including excluded directories)")
+            else:
+                # Filter out projects from excluded directories
+                projects = self.db.query(Project).join(
+                    Directory, Project.directory_id == Directory.id
+                ).filter(
+                    Directory.exclude_from_sync == False
+                ).all()
+                
+                total_count = self.db.query(Project).count()
+                excluded_count = total_count - len(projects)
+                
+                logger.info(
+                    f"Retrieved {len(projects)} projects from syncable directories "
+                    f"({excluded_count} projects excluded from sync)"
+                )
+            
             return projects
         except Exception as e:
             logger.error(f"Failed to get projects: {str(e)}")
