@@ -87,13 +87,8 @@ def validate_environment():
     
     missing_vars = []
     for var in required_vars:
-        value = os.getenv(var)
-        if not value:
+        if not os.getenv(var):
             missing_vars.append(var)
-        elif var == "DATABASE_URL":
-            # Log DATABASE_URL scheme for debugging
-            scheme = value.split("://")[0] if "://" in value else "unknown"
-            logger.info(f"DATABASE_URL scheme: {scheme}")
     
     if missing_vars:
         logger.error(f"Missing required environment variables: {missing_vars}")
