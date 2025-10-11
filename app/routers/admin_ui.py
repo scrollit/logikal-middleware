@@ -322,6 +322,9 @@ async def admin_dashboard():
                     <a class="nav-link" href="/admin/sync-logs">
                         <i class="fas fa-list-alt"></i> Sync Logs
                     </a>
+                    <a class="nav-link" href="/admin/clients">
+                        <i class="fas fa-users"></i> API Clients
+                    </a>
                     <div class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-user-shield"></i> <span id="adminUsername">Admin</span>
@@ -5034,6 +5037,9 @@ async def admin_sync_intervals_ui():
                     <a class="nav-link" href="/admin/sync-logs">
                         <i class="fas fa-list-alt"></i> Sync Logs
                     </a>
+                    <a class="nav-link" href="/admin/clients">
+                        <i class="fas fa-users"></i> API Clients
+                    </a>
                     <div class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-user-shield"></i> <span id="adminUsername">Admin</span>
@@ -5771,6 +5777,9 @@ async def admin_sync_logs_ui(request: Request):
                     </a>
                     <a class="nav-link" href="/admin/sync-logs">
                         <i class="fas fa-list-alt"></i> Sync Logs
+                    </a>
+                    <a class="nav-link" href="/admin/clients">
+                        <i class="fas fa-users"></i> API Clients
                     </a>
                     <div class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
