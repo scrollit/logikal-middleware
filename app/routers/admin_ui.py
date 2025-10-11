@@ -7079,3 +7079,540 @@ async def get_completed_tasks():
             "message": f"Failed to get completed tasks: {str(e)}",
             "data": {}
         }
+
+
+@router.get("/clients", response_class=HTMLResponse)
+async def admin_clients_ui(request: Request):
+    """Admin clients management interface"""
+    clients_html = """
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>API Clients - Logikal Middleware Admin</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <style>
+            body { background: #f8f9fa; }
+            .navbar { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+            .client-card { transition: transform 0.2s; }
+            .client-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+            .badge-active { background: #28a745; }
+            .badge-inactive { background: #dc3545; }
+            .secret-display { background: #f8f9fa; border: 2px dashed #667eea; padding: 15px; border-radius: 8px; font-family: monospace; word-break: break-all; }
+            .copy-btn { cursor: pointer; }
+            .permissions-list { display: flex; flex-wrap: wrap; gap: 5px; }
+            .permission-badge { background: #667eea; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; }
+        </style>
+    </head>
+    <body>
+        <!-- Navigation -->
+        <nav class="navbar navbar-expand-lg navbar-dark">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="/admin">
+                    <i class="fas fa-cogs"></i> Logikal Middleware Admin
+                </a>
+                <div class="navbar-nav ms-auto">
+                    <a class="nav-link" href="/admin/sync-intervals">
+                        <i class="fas fa-clock"></i> Sync Intervals
+                    </a>
+                    <a class="nav-link" href="/admin/sync-logs">
+                        <i class="fas fa-list-alt"></i> Sync Logs
+                    </a>
+                    <a class="nav-link active" href="/admin/clients">
+                        <i class="fas fa-users"></i> API Clients
+                    </a>
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle"></i> Admin
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/admin/logout"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="container-fluid mt-4">
+            <!-- Header -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <h1><i class="fas fa-users"></i> API Clients Management</h1>
+                    <p class="text-muted">Manage client credentials and permissions for API access</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-primary" onclick="showCreateClientModal()">
+                        <i class="fas fa-plus"></i> Create New Client
+                    </button>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                            <h3 id="totalClients">0</h3>
+                            <p class="text-muted mb-0">Total Clients</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                            <h3 id="activeClients">0</h3>
+                            <p class="text-muted mb-0">Active Clients</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-ban fa-2x text-danger mb-2"></i>
+                            <h3 id="inactiveClients">0</h3>
+                            <p class="text-muted mb-0">Inactive Clients</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-clock fa-2x text-info mb-2"></i>
+                            <h3 id="recentlyUsed">0</h3>
+                            <p class="text-muted mb-0">Used Recently</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clients List -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6><i class="fas fa-list"></i> Registered Clients</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Client ID</th>
+                                            <th>Permissions</th>
+                                            <th>Rate Limit</th>
+                                            <th>Status</th>
+                                            <th>Last Used</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="clientsTableBody">
+                                        <tr>
+                                            <td colspan="7" class="text-center">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Client Modal -->
+        <div class="modal fade" id="createClientModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-plus"></i> Create New Client</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="createClientForm">
+                            <div class="mb-3">
+                                <label class="form-label">Client Name *</label>
+                                <input type="text" class="form-control" id="clientName" required placeholder="e.g., Odoo Production Instance">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" id="clientDescription" rows="3" placeholder="Optional description of this client"></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Permissions</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="projects:read" id="permProjectsRead">
+                                    <label class="form-check-label" for="permProjectsRead">Projects: Read</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="elevations:read" id="permElevationsRead">
+                                    <label class="form-check-label" for="permElevationsRead">Elevations: Read</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="phases:read" id="permPhasesRead">
+                                    <label class="form-check-label" for="permPhasesRead">Phases: Read</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="directories:read" id="permDirectoriesRead">
+                                    <label class="form-check-label" for="permDirectoriesRead">Directories: Read</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="admin:read" id="permAdminRead">
+                                    <label class="form-check-label" for="permAdminRead">Admin: Read</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Rate Limit (per hour)</label>
+                                <input type="number" class="form-control" id="clientRateLimit" value="1000" min="1">
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" onclick="createClient()">
+                            <i class="fas fa-save"></i> Create Client
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Client Secret Display Modal -->
+        <div class="modal fade" id="secretModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Save These Credentials</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <strong><i class="fas fa-exclamation-triangle"></i> Important:</strong> 
+                            Save these credentials now. The Client Secret cannot be retrieved later!
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Client ID</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="displayClientId" readonly>
+                                <button class="btn btn-outline-secondary copy-btn" onclick="copyToClipboard('displayClientId')">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Client Secret</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="displayClientSecret" readonly>
+                                <button class="btn btn-outline-secondary copy-btn" onclick="copyToClipboard('displayClientSecret')">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <strong>Next Steps:</strong>
+                            <ol class="mb-0 mt-2">
+                                <li>Copy both the Client ID and Client Secret</li>
+                                <li>Store them securely in your application's configuration</li>
+                                <li>Use them to authenticate API requests</li>
+                            </ol>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">I've Saved the Credentials</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Client Details Modal -->
+        <div class="modal fade" id="clientDetailsModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="fas fa-info-circle"></i> Client Details</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="clientDetailsBody">
+                        <!-- Will be populated dynamically -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            let clients = [];
+
+            async function loadClients() {
+                try {
+                    const response = await fetch('/api/v1/admin/clients/');
+                    if (!response.ok) throw new Error('Failed to fetch clients');
+                    
+                    clients = await response.json();
+                    updateStatistics();
+                    renderClientsTable();
+                } catch (error) {
+                    console.error('Error loading clients:', error);
+                    document.getElementById('clientsTableBody').innerHTML = 
+                        '<tr><td colspan="7" class="text-center text-danger">Error loading clients</td></tr>';
+                }
+            }
+
+            function updateStatistics() {
+                const now = new Date();
+                const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                
+                const activeCount = clients.filter(c => c.is_active).length;
+                const recentlyUsed = clients.filter(c => {
+                    if (!c.last_used_at) return false;
+                    return new Date(c.last_used_at) > oneDayAgo;
+                }).length;
+
+                document.getElementById('totalClients').textContent = clients.length;
+                document.getElementById('activeClients').textContent = activeCount;
+                document.getElementById('inactiveClients').textContent = clients.length - activeCount;
+                document.getElementById('recentlyUsed').textContent = recentlyUsed;
+            }
+
+            function renderClientsTable() {
+                const tbody = document.getElementById('clientsTableBody');
+                
+                if (clients.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No clients registered yet</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = clients.map(client => `
+                    <tr>
+                        <td>
+                            <strong>${escapeHtml(client.name)}</strong>
+                            ${client.description ? '<br><small class="text-muted">' + escapeHtml(client.description) + '</small>' : ''}
+                        </td>
+                        <td><code>${escapeHtml(client.client_id)}</code></td>
+                        <td>
+                            <div class="permissions-list">
+                                ${client.permissions.slice(0, 3).map(p => '<span class="permission-badge">' + escapeHtml(p) + '</span>').join('')}
+                                ${client.permissions.length > 3 ? '<span class="permission-badge">+' + (client.permissions.length - 3) + ' more</span>' : ''}
+                            </div>
+                        </td>
+                        <td>${client.rate_limit_per_hour}/hr</td>
+                        <td>
+                            <span class="badge ${client.is_active ? 'badge-active' : 'badge-inactive'}">
+                                ${client.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </td>
+                        <td>${client.last_used_at ? new Date(client.last_used_at).toLocaleString() : 'Never'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" onclick="showClientDetails('${client.client_id}')">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning" onclick="regenerateSecret('${client.client_id}')">
+                                <i class="fas fa-key"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-${client.is_active ? 'secondary' : 'success'}" onclick="toggleClientStatus('${client.client_id}', ${!client.is_active})">
+                                <i class="fas fa-${client.is_active ? 'pause' : 'play'}"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteClient('${client.client_id}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            function showCreateClientModal() {
+                document.getElementById('createClientForm').reset();
+                const modal = new bootstrap.Modal(document.getElementById('createClientModal'));
+                modal.show();
+            }
+
+            async function createClient() {
+                try {
+                    const name = document.getElementById('clientName').value;
+                    const description = document.getElementById('clientDescription').value;
+                    const rateLimit = parseInt(document.getElementById('clientRateLimit').value);
+                    
+                    const permissions = [];
+                    document.querySelectorAll('#createClientForm input[type="checkbox"]:checked').forEach(cb => {
+                        permissions.push(cb.value);
+                    });
+
+                    const response = await fetch('/api/v1/admin/clients/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            name,
+                            description: description || null,
+                            permissions,
+                            rate_limit_per_hour: rateLimit
+                        })
+                    });
+
+                    if (!response.ok) throw new Error('Failed to create client');
+                    
+                    const result = await response.json();
+                    
+                    // Hide create modal
+                    bootstrap.Modal.getInstance(document.getElementById('createClientModal')).hide();
+                    
+                    // Show credentials
+                    document.getElementById('displayClientId').value = result.client.client_id;
+                    document.getElementById('displayClientSecret').value = result.client_secret;
+                    
+                    const secretModal = new bootstrap.Modal(document.getElementById('secretModal'));
+                    secretModal.show();
+                    
+                    // Reload clients list
+                    await loadClients();
+                    
+                } catch (error) {
+                    console.error('Error creating client:', error);
+                    alert('Failed to create client: ' + error.message);
+                }
+            }
+
+            async function regenerateSecret(clientId) {
+                if (!confirm('Are you sure you want to regenerate the secret for this client? The old secret will stop working immediately.')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/v1/admin/clients/${clientId}/regenerate-secret`, {
+                        method: 'POST'
+                    });
+
+                    if (!response.ok) throw new Error('Failed to regenerate secret');
+                    
+                    const result = await response.json();
+                    
+                    document.getElementById('displayClientId').value = result.client_id;
+                    document.getElementById('displayClientSecret').value = result.client_secret;
+                    
+                    const secretModal = new bootstrap.Modal(document.getElementById('secretModal'));
+                    secretModal.show();
+                    
+                } catch (error) {
+                    console.error('Error regenerating secret:', error);
+                    alert('Failed to regenerate secret: ' + error.message);
+                }
+            }
+
+            async function showClientDetails(clientId) {
+                const client = clients.find(c => c.client_id === clientId);
+                if (!client) return;
+
+                const detailsBody = document.getElementById('clientDetailsBody');
+                detailsBody.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Basic Information</h6>
+                            <table class="table table-sm">
+                                <tr><th>Name:</th><td>${escapeHtml(client.name)}</td></tr>
+                                <tr><th>Client ID:</th><td><code>${escapeHtml(client.client_id)}</code></td></tr>
+                                <tr><th>Description:</th><td>${escapeHtml(client.description || 'N/A')}</td></tr>
+                                <tr><th>Status:</th><td><span class="badge ${client.is_active ? 'badge-active' : 'badge-inactive'}">${client.is_active ? 'Active' : 'Inactive'}</span></td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Configuration</h6>
+                            <table class="table table-sm">
+                                <tr><th>Rate Limit:</th><td>${client.rate_limit_per_hour} requests/hour</td></tr>
+                                <tr><th>Created:</th><td>${new Date(client.created_at).toLocaleString()}</td></tr>
+                                <tr><th>Updated:</th><td>${new Date(client.updated_at).toLocaleString()}</td></tr>
+                                <tr><th>Last Used:</th><td>${client.last_used_at ? new Date(client.last_used_at).toLocaleString() : 'Never'}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Permissions</h6>
+                            <div class="permissions-list">
+                                ${client.permissions.map(p => '<span class="permission-badge">' + escapeHtml(p) + '</span>').join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const modal = new bootstrap.Modal(document.getElementById('clientDetailsModal'));
+                modal.show();
+            }
+
+            async function toggleClientStatus(clientId, newStatus) {
+                try {
+                    const response = await fetch(`/api/v1/admin/clients/${clientId}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ is_active: newStatus })
+                    });
+
+                    if (!response.ok) throw new Error('Failed to update client status');
+                    
+                    await loadClients();
+                    
+                } catch (error) {
+                    console.error('Error updating client status:', error);
+                    alert('Failed to update client status: ' + error.message);
+                }
+            }
+
+            async function deleteClient(clientId) {
+                if (!confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/v1/admin/clients/${clientId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (!response.ok) throw new Error('Failed to delete client');
+                    
+                    await loadClients();
+                    
+                } catch (error) {
+                    console.error('Error deleting client:', error);
+                    alert('Failed to delete client: ' + error.message);
+                }
+            }
+
+            function copyToClipboard(elementId) {
+                const element = document.getElementById(elementId);
+                element.select();
+                element.setSelectionRange(0, 99999);
+                document.execCommand('copy');
+                
+                // Visual feedback
+                const btn = event.target.closest('button');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                }, 2000);
+            }
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            // Load clients on page load
+            document.addEventListener('DOMContentLoaded', loadClients);
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=clients_html)
