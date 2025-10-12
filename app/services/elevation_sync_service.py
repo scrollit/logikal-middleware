@@ -266,9 +266,9 @@ class ElevationSyncService:
                     try:
                         # Create a fresh token for each elevation (session is stateful, locked to current context)
                         auth_service = AuthService(db)
-                        fresh_token = await auth_service.authenticate(username, password)
+                        auth_success, fresh_token = await auth_service.authenticate(base_url, username, password)
                         
-                        if not fresh_token:
+                        if not auth_success or not fresh_token:
                             parts_lists_failed += 1
                             logger.warning(f"Failed to authenticate for parts list sync: {elevation.name}")
                             continue
