@@ -446,20 +446,10 @@ class ProjectSyncService:
                     if not success:
                         raise Exception(f"Failed to select stale project {project_id}: {message}")
                     
-                    # Step 2: Get fresh project data
-                    success, projects_data, message = await project_service.get_projects()
+                    # Step 2: Get fresh project data using get_project_details (works in project context)
+                    success, project_data, message = await project_service.get_project_details(project_lookup.logikal_id)
                     if not success:
                         raise Exception(f"Failed to get fresh project data for {project_id}: {message}")
-                    
-                    # Find the specific project in results
-                    project_data = None
-                    for proj in projects_data:
-                        if proj.get('id') == project_lookup.logikal_id:
-                            project_data = proj
-                            break
-                    
-                    if not project_data:
-                        raise Exception(f"Fresh project data not found for {project_id} after selection")
                     
                     result = await self._sync_complete_project_from_logikal(
                         project_data, directory, token, base_url, username, password
@@ -513,11 +503,27 @@ class ProjectSyncService:
                 logger.warning(f"Could not select project {project.name} for staleness check: {message}")
                 return True  # If we can't check, assume stale
             
-            # Get project data
-            success, projects_data, message = await project_service.get_projects()
-            if not success:
-                logger.warning(f"Could not get project data for staleness check: {message}")
-                return True  # If we can't check, assume stale
+            # Skip get_projects() call - it fails after select_project() due to context switching
+            # For Force Sync, we'll use a time-based staleness check instead
+            logger.info(f"Skipping API staleness check for {project.name}, using time-based check")
+            
+            # Use time-based staleness check instead of API comparison
+            from datetime import timezone, timedelta
+            
+            if not project.synced_at:
+                logger.info(f"Project {project.name} has no sync date, assuming stale")
+                return True
+            
+            # Check if project was synced more than 1 hour ago
+            one_hour_ago = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(hours=1)
+            middleware_date = project.synced_at.replace(tzinfo=timezone.utc)
+            
+            is_stale = middleware_date < one_hour_ago
+            
+            logger.info(f"Project {project.name} staleness check: "
+                       f"Last sync={middleware_date}, One hour ago={one_hour_ago}, Stale={is_stale}")
+            
+            return is_stale
             
             # Find the specific project in results
             project_data = None
