@@ -416,22 +416,37 @@ class ProjectSyncService:
                 if not success:
                     raise Exception(f"Failed to navigate to directory {directory.name}: {message}")
             
-            # Get project details from Logikal API
+            # First, try to find the project in the database by name to get the GUID
+            # The project_id parameter from Odoo is typically a project name/number, not a GUID
+            project_lookup = self.db.query(Project).filter(
+                Project.name == project_id
+            ).first()
+            
+            if project_lookup:
+                # Use the GUID for API calls
+                api_project_id = project_lookup.logikal_id
+                logger.info(f"Found project '{project_id}' in database with GUID: {api_project_id}")
+            else:
+                # If not found in database, assume project_id is already a GUID
+                api_project_id = project_id
+                logger.info(f"Project '{project_id}' not found in database, assuming it's a GUID")
+            
+            # Get project details from Logikal API using the GUID
             project_service = ProjectService(self.db, token, base_url)
-            success, project_data, message = await project_service.get_project_details(project_id)
+            success, project_data, message = await project_service.get_project_details(api_project_id)
             
             if not success:
-                raise Exception(f"Failed to get project details for {project_id}: {message}")
+                raise Exception(f"Failed to get project details for {project_id} (GUID: {api_project_id}): {message}")
             
             # Sync the project data to database
             phases_synced = 0
             elevations_synced = 0
             
-            # Create or update project record
-            project = self.db.query(Project).filter(Project.logikal_id == project_id).first()
+            # Create or update project record using the GUID
+            project = self.db.query(Project).filter(Project.logikal_id == api_project_id).first()
             if not project:
                 project = Project(
-                    logikal_id=project_id,
+                    logikal_id=api_project_id,
                     name=project_data.get('name', ''),
                     description=project_data.get('description', ''),
                     directory_id=directory.id if directory else None,
@@ -440,14 +455,14 @@ class ProjectSyncService:
                 )
                 self.db.add(project)
                 self.db.commit()
-                logger.info(f"Created new project: {project.name}")
+                logger.info(f"Created new project: {project.name} (GUID: {api_project_id})")
             else:
                 project.name = project_data.get('name', project.name)
                 project.description = project_data.get('description', project.description)
                 project.sync_status = 'synced'
                 project.synced_at = datetime.utcnow()
                 self.db.commit()
-                logger.info(f"Updated existing project: {project.name}")
+                logger.info(f"Updated existing project: {project.name} (GUID: {api_project_id})")
             
             duration = time.time() - sync_start_time
             
