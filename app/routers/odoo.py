@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -13,6 +14,8 @@ from schemas.odoo.project_response import (
 from models.project import Project
 from models.phase import Phase
 from models.elevation import Elevation
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/odoo", tags=["odoo-integration"])
 
