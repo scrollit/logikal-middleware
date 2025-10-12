@@ -252,8 +252,9 @@ class ElevationSyncService:
                 except Exception as e:
                     logger.error(f"Failed to process elevation {elevation_data.get('name', 'Unknown')}: {str(e)}")
             
-            # Now sync parts lists for all elevations (requires selecting each elevation individually)
-            if base_url and token and elevations_processed > 0:
+            # Now sync parts lists for all elevations (requires creating new sessions for each)
+            # We cannot reuse the current token because it's locked in phase context
+            if base_url and username and password and elevations_processed > 0:
                 logger.info(f"Starting parts list sync for {elevations_processed} elevations in phase {phase.name}")
                 from services.parts_list_sync_service import PartsListSyncService
                 parts_service = PartsListSyncService(db)
@@ -263,9 +264,18 @@ class ElevationSyncService:
                 
                 for elevation in phase_elevations:
                     try:
-                        # Parts list sync will navigate to elevation context (directory → project → phase → elevation)
+                        # Create a fresh token for each elevation (session is stateful, locked to current context)
+                        auth_service = AuthService(db)
+                        fresh_token = await auth_service.authenticate(username, password)
+                        
+                        if not fresh_token:
+                            parts_lists_failed += 1
+                            logger.warning(f"Failed to authenticate for parts list sync: {elevation.name}")
+                            continue
+                        
+                        # Parts list sync will navigate to elevation context with fresh session
                         success, message = await parts_service.sync_parts_for_elevation(
-                            elevation.id, base_url, token, skip_navigation=False
+                            elevation.id, base_url, fresh_token, skip_navigation=False
                         )
                         if success:
                             parts_lists_synced += 1
