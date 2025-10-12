@@ -249,15 +249,33 @@ class ElevationSyncService:
                 try:
                     elevation = await self._create_or_update_elevation(db, elevation_data, phase.id, base_url, token)
                     elevations_processed += 1
-                    
-                    # Track parts list sync status
-                    if elevation and elevation.has_parts_data:
-                        parts_lists_synced += 1
-                    elif elevation and base_url and token:
-                        # Parts list sync was attempted but failed
-                        parts_lists_failed += 1
                 except Exception as e:
                     logger.error(f"Failed to process elevation {elevation_data.get('name', 'Unknown')}: {str(e)}")
+            
+            # Now sync parts lists for all elevations (requires selecting each elevation individually)
+            if base_url and token and elevations_processed > 0:
+                logger.info(f"Starting parts list sync for {elevations_processed} elevations in phase {phase.name}")
+                from services.parts_list_sync_service import PartsListSyncService
+                parts_service = PartsListSyncService(db)
+                
+                # Get all elevations for this phase
+                phase_elevations = db.query(Elevation).filter(Elevation.phase_id == phase.id).all()
+                
+                for elevation in phase_elevations:
+                    try:
+                        # Parts list sync will navigate to elevation context (directory → project → phase → elevation)
+                        success, message = await parts_service.sync_parts_for_elevation(
+                            elevation.id, base_url, token, skip_navigation=False
+                        )
+                        if success:
+                            parts_lists_synced += 1
+                            logger.info(f"Parts list synced for elevation {elevation.name}: {message}")
+                        else:
+                            parts_lists_failed += 1
+                            logger.warning(f"Parts list sync failed for elevation {elevation.name}: {message}")
+                    except Exception as e:
+                        parts_lists_failed += 1
+                        logger.error(f"Error syncing parts list for elevation {elevation.name}: {str(e)}")
             
             # Calculate duration
             duration = int(time.time() - sync_start_time)
@@ -353,21 +371,9 @@ class ElevationSyncService:
                 db.commit()
                 
                 # Sync parts list if base_url and token provided
-                if base_url and token:
-                    try:
-                        from services.parts_list_sync_service import PartsListSyncService
-                        parts_service = PartsListSyncService(db)
-                        logger.info(f"Starting parts list sync for existing elevation: {name} (inline, skipping navigation)")
-                        success, message = await parts_service.sync_parts_for_elevation(
-                            existing_elevation.id, base_url, token, skip_navigation=True
-                        )
-                        if success:
-                            logger.info(f"Parts list synced for elevation {name}: {message}")
-                        else:
-                            logger.warning(f"Parts list sync failed for elevation {name}: {message}")
-                    except Exception as e:
-                        logger.error(f"Error syncing parts list for elevation {name}: {str(e)}")
-                        # Don't fail the entire elevation sync if parts list fails
+                # NOTE: We cannot sync parts list inline here because we're in phase context, not elevation context
+                # Parts list sync will be done separately after all elevations are processed
+                # This avoids the 405 error: "This operation expects the session to be in an elevation."
                 
                 logger.debug(f"Updated existing elevation: {name} (ID: {identifier})")
                 return existing_elevation
@@ -416,21 +422,9 @@ class ElevationSyncService:
                     logger.info(f"Successfully created new elevation: {name} (ID: {identifier}) - Verified in database")
                     
                     # Sync parts list if base_url and token provided
-                    if base_url and token:
-                        try:
-                            from services.parts_list_sync_service import PartsListSyncService
-                            parts_service = PartsListSyncService(db)
-                            logger.info(f"Starting parts list sync for elevation: {name} (inline, skipping navigation)")
-                            success, message = await parts_service.sync_parts_for_elevation(
-                                saved_elevation.id, base_url, token, skip_navigation=True
-                            )
-                            if success:
-                                logger.info(f"Parts list synced for elevation {name}: {message}")
-                            else:
-                                logger.warning(f"Parts list sync failed for elevation {name}: {message}")
-                        except Exception as e:
-                            logger.error(f"Error syncing parts list for elevation {name}: {str(e)}")
-                            # Don't fail the entire elevation sync if parts list fails
+                    # NOTE: We cannot sync parts list inline here because we're in phase context, not elevation context
+                    # Parts list sync will be done separately after all elevations are processed
+                    # This avoids the 405 error: "This operation expects the session to be in an elevation."
                 else:
                     logger.error(f"Elevation creation failed - elevation not found in database after commit: {name} (ID: {identifier})")
                 
