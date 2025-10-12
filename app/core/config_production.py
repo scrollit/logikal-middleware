@@ -137,7 +137,8 @@ class ProductionSettings(BaseSettings):
         return v
     
     class Config:
-        env_file = ".env"
+        # Don't use .env file in production - rely on environment variables
+        env_file = None
         case_sensitive = True
         extra = "ignore"
 
