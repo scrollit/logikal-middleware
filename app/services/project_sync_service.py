@@ -701,6 +701,7 @@ class ProjectSyncService:
                     # Sync elevations for each phase
                     from services.elevation_sync_service import ElevationSyncService
                     from models.phase import Phase
+                    elevation_sync_service = ElevationSyncService(self.db)
                     phases = self.db.query(Phase).filter(Phase.project_id == project.id).all()
                     
                     for phase in phases:
