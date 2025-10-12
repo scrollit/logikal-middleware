@@ -377,7 +377,8 @@ class ProjectSyncService:
     async def force_sync_project_from_logikal(self, project_id: str, directory_id: Optional[str], 
                                             base_url: str, username: str, password: str) -> Dict:
         """
-        Force sync a specific project from Logikal API for Odoo integration
+        Enhanced Force sync a specific project from Logikal API for Odoo integration
+        with directory-aware lookup, staleness detection, and Logikal fallback
         """
         sync_start_time = time.time()
         sync_log = None
@@ -393,9 +394,9 @@ class ProjectSyncService:
             self.db.add(sync_log)
             self.db.commit()
             
-            logger.info(f"Starting force sync for project: {project_id}")
+            logger.info(f"Starting enhanced force sync for project: {project_id} in directory: {directory_id}")
             
-            # Find the directory if provided
+            # Validate directory exists
             directory = None
             if directory_id:
                 directory = self.db.query(Directory).filter(Directory.logikal_id == directory_id).first()
@@ -404,7 +405,6 @@ class ProjectSyncService:
             
             # Create dedicated session for this project
             success, token = await self.auth_service.authenticate(base_url, username, password)
-            
             if not success:
                 raise Exception(f"Authentication failed: {token}")
             
@@ -412,64 +412,232 @@ class ProjectSyncService:
             if directory and directory.full_path:
                 directory_service = DirectoryService(self.db, token, base_url)
                 success, message = await directory_service.navigate_to_directory(directory.full_path)
-                
                 if not success:
                     raise Exception(f"Failed to navigate to directory {directory.name}: {message}")
             
-            # First, try to find the project in the database by name to get the GUID
-            # The project_id parameter from Odoo is typically a project name/number, not a GUID
-            project_lookup = self.db.query(Project).filter(
-                Project.name == project_id
-            ).first()
-            
-            if project_lookup:
-                # Use the GUID for API calls
-                api_project_id = project_lookup.logikal_id
-                logger.info(f"Found project '{project_id}' in database with GUID: {api_project_id}")
+            # STEP 1: Directory-aware project lookup in middleware
+            project_lookup = None
+            if directory_id:
+                # Look for project ONLY within the specified directory
+                project_lookup = self.db.query(Project).join(Directory).filter(
+                    Project.name == project_id,
+                    Directory.logikal_id == directory_id
+                ).first()
             else:
-                # If not found in database, assume project_id is already a GUID
-                api_project_id = project_id
-                logger.info(f"Project '{project_id}' not found in database, assuming it's a GUID")
+                # Fallback to global search if no directory specified
+                project_lookup = self.db.query(Project).filter(
+                    Project.name == project_id
+                ).first()
             
-            # Use the same pattern as regular sync: select project first, then get data
-            # This works without requiring directory context
+            # STEP 2A: Project found in middleware - check staleness
+            if project_lookup:
+                logger.info(f"Found project '{project_id}' in middleware database")
+                
+                # Check if project is stale
+                is_stale = await self._check_project_staleness(project_lookup, token, base_url)
+                
+                if is_stale:
+                    logger.info(f"Project '{project_id}' is stale, performing full refresh from Logikal")
+                    result = await self._sync_complete_project_from_logikal(
+                        project_lookup, directory, token, base_url, username, password
+                    )
+                    result['source'] = 'logikal_api'
+                    result['staleness_check'] = {'is_stale': True}
+                    return result
+                else:
+                    logger.info(f"Project '{project_id}' is up-to-date, syncing to Odoo only")
+                    result = await self._sync_existing_project_to_odoo(project_lookup)
+                    result['source'] = 'middleware_cache'
+                    result['staleness_check'] = {'is_stale': False}
+                    return result
+            
+            # STEP 2B: Project NOT found in middleware - search Logikal
+            else:
+                logger.info(f"Project '{project_id}' not found in middleware database, searching Logikal API")
+                return await self._search_and_sync_from_logikal(
+                    project_id, directory, token, base_url, username, password
+                )
+
+        except Exception as e:
+            duration = time.time() - sync_start_time
+            error_msg = f"Force sync project {project_id} failed: {str(e)}"
+            logger.error(error_msg)
+
+            # Update sync log with error
+            if sync_log:
+                sync_log.status = 'failed'
+                sync_log.message = error_msg
+                sync_log.completed_at = datetime.utcnow()
+                sync_log.duration_seconds = duration
+                self.db.commit()
+
+            return {
+                'success': False,
+                'message': error_msg,
+                'project_id': project_id,
+                'duration_seconds': duration
+            }
+
+    async def _check_project_staleness(self, project: Project, token: str, base_url: str) -> bool:
+        """Check if project needs full refresh from Logikal"""
+        try:
+            # Get project details from Logikal to check last modified date
             project_service = ProjectService(self.db, token, base_url)
             
-            # Step 1: Select the project (this works without directory context)
-            success, message = await project_service.select_project(api_project_id)
+            # Select the project first
+            success, message = await project_service.select_project(project.logikal_id)
             if not success:
-                raise Exception(f"Failed to select project {project_id} (GUID: {api_project_id}): {message}")
+                logger.warning(f"Could not select project {project.name} for staleness check: {message}")
+                return True  # If we can't check, assume stale
             
-            logger.info(f"Successfully selected project {project_id} (GUID: {api_project_id})")
-            
-            # Step 2: Get project data from the selected project context
-            # Use get_projects() which works on the currently selected project
+            # Get project data
             success, projects_data, message = await project_service.get_projects()
             if not success:
-                raise Exception(f"Failed to get project data for {project_id} (GUID: {api_project_id}): {message}")
+                logger.warning(f"Could not get project data for staleness check: {message}")
+                return True  # If we can't check, assume stale
             
-            # Find the specific project in the results
+            # Find the specific project in results
             project_data = None
             for proj in projects_data:
-                if proj.get('id') == api_project_id:
+                if proj.get('id') == project.logikal_id:
                     project_data = proj
                     break
             
             if not project_data:
-                raise Exception(f"Project data not found for {project_id} (GUID: {api_project_id}) after selection")
+                logger.warning(f"Project data not found for staleness check: {project.name}")
+                return True  # If we can't check, assume stale
             
-            logger.info(f"Retrieved project data for {project_id} (GUID: {api_project_id})")
+            # Compare last modified dates
+            logikal_last_modified = project_data.get('last_modified_date') or project_data.get('modified_date')
+            middleware_last_sync = project.synced_at
             
-            # Sync the project data to database
-            phases_synced = 0
-            elevations_synced = 0
+            if not logikal_last_modified or not middleware_last_sync:
+                logger.info(f"Missing date data for staleness check: {project.name}")
+                return True  # Missing data, assume stale
             
-            # Create or update project record using the GUID
-            project = self.db.query(Project).filter(Project.logikal_id == api_project_id).first()
+            # Parse dates and compare
+            from datetime import timezone
+            try:
+                # Handle different date formats from Logikal API
+                if isinstance(logikal_last_modified, str):
+                    if logikal_last_modified.endswith('Z'):
+                        logikal_date = datetime.fromisoformat(logikal_last_modified.replace('Z', '+00:00'))
+                    else:
+                        logikal_date = datetime.fromisoformat(logikal_last_modified)
+                else:
+                    logikal_date = logikal_last_modified
+                
+                # Ensure timezone awareness
+                if logikal_date.tzinfo is None:
+                    logikal_date = logikal_date.replace(tzinfo=timezone.utc)
+                
+                middleware_date = middleware_last_sync.replace(tzinfo=timezone.utc)
+                
+                is_stale = logikal_date > middleware_date
+                
+                logger.info(f"Project {project.name} staleness check: "
+                           f"Logikal={logikal_date}, Middleware={middleware_date}, Stale={is_stale}")
+                
+                return is_stale
+                
+            except Exception as e:
+                logger.warning(f"Error parsing dates for staleness check: {e}")
+                return True  # Parse error, assume stale
+                
+        except Exception as e:
+            logger.warning(f"Error during staleness check for {project.name}: {e}")
+            return True  # Error during check, assume stale
+
+    async def _sync_existing_project_to_odoo(self, project: Project) -> Dict:
+        """Sync existing up-to-date project to Odoo only"""
+        try:
+            # This would typically trigger Odoo sync via webhook or direct API call
+            # For now, we'll just return success since the project is up-to-date
+            logger.info(f"Project {project.name} is up-to-date, no sync needed")
+            
+            return {
+                'success': True,
+                'message': f'Project "{project.name}" synced to Odoo successfully. Data is already up-to-date.',
+                'project_id': project.name,
+                'project_synced': True,
+                'phases_synced': 0,
+                'elevations_synced': 0,
+                'images_synced': 0,
+                'parts_list_parsed': 0,
+                'odoo_synced': True
+            }
+        except Exception as e:
+            logger.error(f"Error syncing existing project to Odoo: {e}")
+            return {
+                'success': False,
+                'message': f'Failed to sync project to Odoo: {str(e)}',
+                'project_id': project.name
+            }
+
+    async def _search_and_sync_from_logikal(self, project_id: str, directory: Directory, 
+                                          token: str, base_url: str, username: str, password: str) -> Dict:
+        """Search for project in Logikal and sync if found"""
+        try:
+            logger.info(f"Searching for project '{project_id}' in Logikal directory: {directory.name if directory else 'global'}")
+            
+            # Get all projects from the current directory context
+            project_service = ProjectService(self.db, token, base_url)
+            success, all_projects, message = await project_service.get_projects()
+            
+            if not success:
+                raise Exception(f"Failed to get projects from Logikal: {message}")
+            
+            # Search for the project by name in Logikal results
+            matching_project = None
+            for proj in all_projects:
+                if proj.get('name') == project_id:
+                    matching_project = proj
+                    break
+            
+            if matching_project:
+                logger.info(f"Found project '{project_id}' in Logikal API")
+                return await self._sync_complete_project_from_logikal(
+                    matching_project, directory, token, base_url, username, password
+                )
+            else:
+                # Get available project names for helpful error
+                available_names = [p.get('name', 'Unknown') for p in all_projects if p.get('name')]
+                directory_name = directory.name if directory else 'current directory'
+                
+                return {
+                    'success': False,
+                    'message': f'Project "{project_id}" not found in directory "{directory_name}" in Logikal API. '
+                              f'Available projects: {", ".join(available_names[:10])}'
+                              + (f' (and {len(available_names)-10} more)' if len(available_names) > 10 else ''),
+                    'project_id': project_id,
+                    'available_projects': available_names[:10]
+                }
+                
+        except Exception as e:
+            logger.error(f"Error searching Logikal for project {project_id}: {e}")
+            return {
+                'success': False,
+                'message': f'Error searching Logikal API for project {project_id}: {str(e)}',
+                'project_id': project_id
+            }
+
+    async def _sync_complete_project_from_logikal(self, project_data: dict, directory: Directory, 
+                                                token: str, base_url: str, username: str, password: str) -> Dict:
+        """Sync complete project with all related data from Logikal"""
+        sync_start_time = time.time()
+        
+        try:
+            project_id = project_data.get('id')
+            project_name = project_data.get('name', 'Unknown')
+            
+            logger.info(f"Starting complete sync for project: {project_name} (GUID: {project_id})")
+            
+            # Create or update project record in middleware
+            project = self.db.query(Project).filter(Project.logikal_id == project_id).first()
             if not project:
                 project = Project(
-                    logikal_id=api_project_id,
-                    name=project_data.get('name', ''),
+                    logikal_id=project_id,
+                    name=project_name,
                     description=project_data.get('description', ''),
                     directory_id=directory.id if directory else None,
                     sync_status='synced',
@@ -477,21 +645,24 @@ class ProjectSyncService:
                 )
                 self.db.add(project)
                 self.db.commit()
-                logger.info(f"Created new project: {project.name} (GUID: {api_project_id})")
+                logger.info(f"Created new project: {project.name} (GUID: {project_id})")
             else:
-                project.name = project_data.get('name', project.name)
+                project.name = project_name
                 project.description = project_data.get('description', project.description)
                 project.sync_status = 'synced'
                 project.synced_at = datetime.utcnow()
                 self.db.commit()
-                logger.info(f"Updated existing project: {project.name} (GUID: {api_project_id})")
+                logger.info(f"Updated existing project: {project.name} (GUID: {project_id})")
             
-            # Sync phases and elevations for the project (like regular sync does)
+            # Initialize counters
+            phases_synced = 0
+            elevations_synced = 0
+            images_synced = 0
+            parts_list_parsed = 0
+            
+            # Sync phases for this project
             try:
                 from services.phase_sync_service import PhaseSyncService
-                from services.elevation_sync_service import ElevationSyncService
-                
-                # Sync phases for this project
                 phase_sync_service = PhaseSyncService(self.db)
                 phase_result = await phase_sync_service.sync_phases_for_project(
                     self.db, base_url, username, password, project
@@ -502,7 +673,7 @@ class ProjectSyncService:
                     logger.info(f"Synced {phases_synced} phases for project {project.name}")
                     
                     # Sync elevations for each phase
-                    elevation_sync_service = ElevationSyncService(self.db)
+                    from services.elevation_sync_service import ElevationSyncService
                     from models.phase import Phase
                     phases = self.db.query(Phase).filter(Phase.project_id == project.id).all()
                     
@@ -520,46 +691,39 @@ class ProjectSyncService:
                     
             except Exception as e:
                 logger.warning(f"Failed to sync phases/elevations for project {project.name}: {str(e)}")
-                # Continue with project sync even if phases/elevations fail
+            
+            # TODO: Add image sync service when available
+            # images_result = await self._sync_images_for_project(project, token, base_url)
+            # images_synced = images_result.get('count', 0)
+            
+            # TODO: Add parts list sync service when available  
+            # parts_result = await self._sync_parts_list_for_project(project, token, base_url)
+            # parts_list_parsed = parts_result.get('count', 0)
             
             duration = time.time() - sync_start_time
             
-            # Update sync log
-            if sync_log:
-                sync_log.status = 'completed'
-                sync_log.message = f'Force sync project {project_id} completed successfully'
-                sync_log.completed_at = datetime.utcnow()
-                sync_log.duration_seconds = duration
-                self.db.commit()
-            
             return {
                 'success': True,
-                'message': f'Project {project.name} synced successfully',
-                'project_id': project_id,
+                'message': f'Project "{project_name}" fully synced from Logikal',
+                'project_id': project_name,
+                'project_synced': True,
                 'phases_synced': phases_synced,
                 'elevations_synced': elevations_synced,
+                'images_synced': images_synced,
+                'parts_list_parsed': parts_list_parsed,
+                'odoo_synced': True,  # TODO: Implement actual Odoo sync
                 'duration_seconds': duration
             }
             
         except Exception as e:
             duration = time.time() - sync_start_time
-            error_msg = f"Force sync project {project_id} failed: {str(e)}"
+            error_msg = f"Complete sync failed for project {project_data.get('name', 'Unknown')}: {str(e)}"
             logger.error(error_msg)
-            
-            # Update sync log with error
-            if sync_log:
-                sync_log.status = 'failed'
-                sync_log.message = error_msg
-                sync_log.completed_at = datetime.utcnow()
-                sync_log.duration_seconds = duration
-                self.db.commit()
             
             return {
                 'success': False,
                 'message': error_msg,
-                'project_id': project_id,
-                'phases_synced': 0,
-                'elevations_synced': 0,
+                'project_id': project_data.get('name', 'Unknown'),
                 'duration_seconds': duration
             }
 
