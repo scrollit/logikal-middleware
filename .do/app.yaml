@@ -15,30 +15,29 @@ services:
   - key: DEBUG
     value: "false"
   - key: SECRET_KEY
-    value: ${SECRET_KEY}
+    value: EV[1:wOlQ5bymgLVcyFfwu5MSjlelR515DDgH:dqZHVMa+TjensZ8d/E9AzId2CTWnu7BYDdCfJWs=]
     type: SECRET
   - key: JWT_SECRET_KEY
-    value: ${JWT_SECRET_KEY}
+    value: EV[1:dkalNcVpuq4u0MecQnKmqXTGLYHZEp8X:sP/FeggfZ7kbe1Y7m3J436vPsmf2vHxQHbRlXOqBAN+e]
     type: SECRET
   - key: DATABASE_URL
-    value: ${DATABASE_URL}
-    type: SECRET
+    value: ${logikal-db.DATABASE_URL}
   - key: REDIS_URL
-    value: ${REDIS_URL}
+    value: EV[1:Av75WT+8Z901d9eToeMH5fxfLNOJLW5E:q4LK5ddyGm2KK4K7Uo4LGd/miJv4h3ei3tko5A==]
     type: SECRET
   - key: LOGIKAL_API_BASE_URL
     value: "http://128.199.57.77/MbioeService.svc/api/v3/"
   - key: LOGIKAL_AUTH_USERNAME
-    value: ${LOGIKAL_AUTH_USERNAME}
+    value: EV[1:yMmSCUB2ut93BsNeGfMDTCCWwuQwf0na:7vtoidLIDQhwqex1EpFJg2+4mPttxTEavxwmZohK6akEXMEzvpkXfA==]
     type: SECRET
   - key: LOGIKAL_AUTH_PASSWORD
-    value: ${LOGIKAL_AUTH_PASSWORD}
+    value: EV[1:6NtAPUAja/ZjLPOy8IQfobelDikfW6vl:SOE2q/zkWLqDzkTC8K9qlypAR9veCFwyK6ynUNTIKY4QcMvInaESzg==]
     type: SECRET
   - key: ADMIN_USERNAME
-    value: ${ADMIN_USERNAME}
+    value: EV[1:4vP7eJ0lU6ZiGBn8UORmHmcijtlUknnb:RwoM1ibPYq5tKnPlyzGBmK4DklqEnD/WdORlf3LDGGDR]
     type: SECRET
   - key: ADMIN_PASSWORD
-    value: ${ADMIN_PASSWORD}
+    value: EV[1:167PSw9jmBldPMWgWTfsy9m7SvyuwR3z:hrGzaMnDjKKwdiRE6tBVIsvfqPs+zrZrtp1OFWdWV+BV]
     type: SECRET
   - key: ADMIN_SESSION_EXPIRE_HOURS
     value: "8"
@@ -53,9 +52,11 @@ services:
   - key: RATE_LIMIT_PER_HOUR
     value: "10000"
   - key: BACKGROUND_SYNC_ENABLED
-    value: "true"
+    value: "false"
   - key: SYNC_INTERVAL_SECONDS
     value: "300"
+  - key: WORKERS
+    value: "1"
   health_check:
     http_path: /api/v1/health
 
