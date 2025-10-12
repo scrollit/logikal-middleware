@@ -154,6 +154,71 @@ class ProjectService:
             )
             return False, error_msg
     
+    @retry_async(config=default_retry_config, rate_limiter=api_rate_limiter)
+    async def _get_project_details_request(self, url: str, headers: dict) -> Tuple[bool, dict, str]:
+        """Internal method to make the actual project details request with retry logic"""
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, timeout=30) as response:
+                response_text = await response.text()
+                
+                if response.status == 200:
+                    data = await response.json()
+                    project_data = data.get('data', data) if isinstance(data, dict) else data
+                    return True, project_data, "Success"
+                else:
+                    error_msg = f"Failed to get project details: {response.status} - {response_text}"
+                    raise Exception(error_msg)
+    
+    async def get_project_details(self, project_identifier: str) -> Tuple[bool, dict, str]:
+        """Get project details by identifier from Logikal API"""
+        if not self.session_token:
+            return False, {}, "No active session. Please authenticate first."
+        
+        url = f"{self.base_url}/projects/{project_identifier}"
+        start_time = time.time()
+        logger.info(f"Fetching project details for {project_identifier}")
+        
+        try:
+            headers = {"Authorization": f"Bearer {self.session_token}"}
+            success, project_data, message = await self._get_project_details_request(url, headers)
+            duration = int((time.time() - start_time) * 1000)
+            
+            if success:
+                logger.info(f"Retrieved project details for {project_identifier}")
+                
+                # Log successful operation
+                await self._log_api_call(
+                    operation='get_project_details',
+                    status='success',
+                    response_code=200,
+                    duration=duration,
+                    request_url=url,
+                    request_method='GET',
+                    response_body=str(project_data),
+                    response_summary=f"Retrieved project details for {project_identifier}"
+                )
+                
+                return True, project_data, "Success"
+            else:
+                return False, {}, message
+                        
+        except Exception as e:
+            duration = int((time.time() - start_time) * 1000)
+            error_msg = f"Error while getting project details for {project_identifier}: {str(e)}"
+            logger.error(error_msg)
+            await self._log_api_call(
+                operation='get_project_details',
+                status='failed',
+                response_code=0,
+                error_message=error_msg,
+                duration=duration,
+                request_url=url,
+                request_method='GET',
+                response_body=None,
+                response_summary=f"Error getting project details for {project_identifier}"
+            )
+            return False, {}, error_msg
+    
     async def _clear_cached_data(self):
         """Clear cached data when context changes"""
         try:
