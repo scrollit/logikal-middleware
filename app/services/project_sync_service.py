@@ -433,18 +433,20 @@ class ProjectSyncService:
             if project_lookup:
                 logger.info(f"Found project '{project_id}' in middleware database")
                 
-                # Check if project is stale
+                # Check if project is stale (now that we're in directory context)
                 is_stale = await self._check_project_staleness(project_lookup, token, base_url)
                 
                 if is_stale:
                     logger.info(f"Project '{project_id}' is stale, performing full refresh from Logikal")
                     
-                    # Get fresh project data from Logikal API
+                    # We're already in the correct directory context, so just select project and get data
+                    # Step 1: Select the project
                     project_service = ProjectService(self.db, token, base_url)
                     success, message = await project_service.select_project(project_lookup.logikal_id)
                     if not success:
                         raise Exception(f"Failed to select stale project {project_id}: {message}")
                     
+                    # Step 2: Get fresh project data
                     success, projects_data, message = await project_service.get_projects()
                     if not success:
                         raise Exception(f"Failed to get fresh project data for {project_id}: {message}")
@@ -500,7 +502,7 @@ class ProjectSyncService:
             }
 
     async def _check_project_staleness(self, project: Project, token: str, base_url: str) -> bool:
-        """Check if project needs full refresh from Logikal"""
+        """Check if project needs full refresh from Logikal (assumes we're already in directory context)"""
         try:
             # Get project details from Logikal to check last modified date
             project_service = ProjectService(self.db, token, base_url)
