@@ -79,6 +79,8 @@ async def force_sync_project_ui(
                 "directory_id": directory_id,
                 "phases_synced": result.get('phases_synced', 0),
                 "elevations_synced": result.get('elevations_synced', 0),
+                "parts_lists_synced": result.get('parts_lists_synced', 0),
+                "parts_lists_failed": result.get('parts_lists_failed', 0),
                 "duration_seconds": result.get('duration_seconds', 0)
             }
         else:
