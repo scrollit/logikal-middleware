@@ -431,12 +431,34 @@ class ProjectSyncService:
                 api_project_id = project_id
                 logger.info(f"Project '{project_id}' not found in database, assuming it's a GUID")
             
-            # Get project details from Logikal API using the GUID
+            # Use the same pattern as regular sync: select project first, then get data
+            # This works without requiring directory context
             project_service = ProjectService(self.db, token, base_url)
-            success, project_data, message = await project_service.get_project_details(api_project_id)
             
+            # Step 1: Select the project (this works without directory context)
+            success, message = await project_service.select_project(api_project_id)
             if not success:
-                raise Exception(f"Failed to get project details for {project_id} (GUID: {api_project_id}): {message}")
+                raise Exception(f"Failed to select project {project_id} (GUID: {api_project_id}): {message}")
+            
+            logger.info(f"Successfully selected project {project_id} (GUID: {api_project_id})")
+            
+            # Step 2: Get project data from the selected project context
+            # Use get_projects() which works on the currently selected project
+            success, projects_data, message = await project_service.get_projects()
+            if not success:
+                raise Exception(f"Failed to get project data for {project_id} (GUID: {api_project_id}): {message}")
+            
+            # Find the specific project in the results
+            project_data = None
+            for proj in projects_data:
+                if proj.get('id') == api_project_id:
+                    project_data = proj
+                    break
+            
+            if not project_data:
+                raise Exception(f"Project data not found for {project_id} (GUID: {api_project_id}) after selection")
+            
+            logger.info(f"Retrieved project data for {project_id} (GUID: {api_project_id})")
             
             # Sync the project data to database
             phases_synced = 0
@@ -463,6 +485,42 @@ class ProjectSyncService:
                 project.synced_at = datetime.utcnow()
                 self.db.commit()
                 logger.info(f"Updated existing project: {project.name} (GUID: {api_project_id})")
+            
+            # Sync phases and elevations for the project (like regular sync does)
+            try:
+                from services.phase_sync_service import PhaseSyncService
+                from services.elevation_sync_service import ElevationSyncService
+                
+                # Sync phases for this project
+                phase_sync_service = PhaseSyncService(self.db)
+                phase_result = await phase_sync_service.sync_phases_for_project(
+                    self.db, base_url, username, password, project
+                )
+                
+                if phase_result.get('success'):
+                    phases_synced = phase_result.get('count', 0)
+                    logger.info(f"Synced {phases_synced} phases for project {project.name}")
+                    
+                    # Sync elevations for each phase
+                    elevation_sync_service = ElevationSyncService(self.db)
+                    from models.phase import Phase
+                    phases = self.db.query(Phase).filter(Phase.project_id == project.id).all()
+                    
+                    for phase in phases:
+                        elevation_result = await elevation_sync_service.sync_elevations_for_phase(
+                            self.db, base_url, username, password, phase
+                        )
+                        
+                        if elevation_result.get('success'):
+                            elevations_synced += elevation_result.get('count', 0)
+                        else:
+                            logger.warning(f"Failed to sync elevations for phase {phase.name}: {elevation_result.get('message', 'Unknown error')}")
+                else:
+                    logger.warning(f"Failed to sync phases for project {project.name}: {phase_result.get('message', 'Unknown error')}")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to sync phases/elevations for project {project.name}: {str(e)}")
+                # Continue with project sync even if phases/elevations fail
             
             duration = time.time() - sync_start_time
             
