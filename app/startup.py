@@ -78,6 +78,23 @@ def validate_environment():
     """
     logger.info("Validating environment variables...")
     
+    # DEBUG: Print actual environment variable values for troubleshooting
+    logger.info("=== DEBUG: Environment Variables ===")
+    for key in ["LOGIKAL_AUTH_USERNAME", "LOGIKAL_AUTH_PASSWORD", "ADMIN_USERNAME", "SECRET_KEY", "JWT_SECRET_KEY"]:
+        value = os.getenv(key, "NOT_SET")
+        # Mask the value but show first/last 3 chars to verify it's not a placeholder
+        if value and value != "NOT_SET":
+            if value.startswith("${") and value.endswith("}"):
+                logger.error(f"{key} = {value!r} (LITERAL PLACEHOLDER - NOT DECRYPTED!)")
+            elif len(value) > 10:
+                masked = f"{value[:3]}...{value[-3:]}"
+                logger.info(f"{key} = {masked} (length: {len(value)})")
+            else:
+                logger.info(f"{key} = {value!r}")
+        else:
+            logger.error(f"{key} = {value!r}")
+    logger.info("=== END DEBUG ===")
+    
     required_vars = [
         "SECRET_KEY",
         "JWT_SECRET_KEY", 
