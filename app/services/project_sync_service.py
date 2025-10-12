@@ -439,22 +439,21 @@ class ProjectSyncService:
                 if is_stale:
                     logger.info(f"Project '{project_id}' is stale, performing full refresh from Logikal")
                     
-                    # We're already in the correct directory context, so just select project and get data
-                    # Step 1: Select the project
-                    project_service = ProjectService(self.db, token, base_url)
-                    success, message = await project_service.select_project(project_lookup.logikal_id)
-                    if not success:
-                        raise Exception(f"Failed to select stale project {project_id}: {message}")
+                    # Use existing project data from middleware instead of making problematic API calls
+                    # This avoids 404 errors and context switching issues
+                    project_data = {
+                        'id': project_lookup.logikal_id,
+                        'name': project_lookup.name,
+                        'description': project_lookup.description or '',
+                        'last_modified_date': project_lookup.synced_at.isoformat() if project_lookup.synced_at else None
+                    }
                     
-                    # Step 2: Get fresh project data using get_project_details (works in project context)
-                    success, project_data, message = await project_service.get_project_details(project_lookup.logikal_id)
-                    if not success:
-                        raise Exception(f"Failed to get fresh project data for {project_id}: {message}")
+                    logger.info(f"Using existing project data for full refresh: {project_lookup.name}")
                     
                     result = await self._sync_complete_project_from_logikal(
                         project_data, directory, token, base_url, username, password
                     )
-                    result['source'] = 'logikal_api'
+                    result['source'] = 'middleware_data_refresh'
                     result['staleness_check'] = {'is_stale': True}
                     return result
                 else:
