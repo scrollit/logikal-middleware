@@ -304,9 +304,32 @@ async def get_project_complete_for_odoo(
             created_at=project.created_at
         )
         
+        # Convert phases_with_elevations to serializable format
+        serializable_phases = []
+        for phase_data in phases_with_elevations:
+            phase = phase_data["phase"]
+            elevations = phase_data["elevations"]
+            
+            serializable_phases.append({
+                "phase": {
+                    "id": phase.logikal_id,
+                    "name": phase.name,
+                    "description": phase.description,
+                    "status": phase.status
+                },
+                "elevations": [
+                    {
+                        "id": elev.logikal_id,
+                        "name": elev.name,
+                        "description": elev.description
+                    } for elev in elevations
+                ],
+                "elevations_count": len(elevations)
+            })
+        
         return OdooProjectCompleteResponse(
             project=odoo_project,
-            phases_with_elevations=phases_with_elevations,
+            phases_with_elevations=serializable_phases,
             summary=complete_data["summary"]
         )
         
