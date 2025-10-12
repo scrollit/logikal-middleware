@@ -357,9 +357,9 @@ class ElevationSyncService:
                     try:
                         from services.parts_list_sync_service import PartsListSyncService
                         parts_service = PartsListSyncService(db)
-                        logger.info(f"Starting parts list sync for existing elevation: {name}")
+                        logger.info(f"Starting parts list sync for existing elevation: {name} (inline, skipping navigation)")
                         success, message = await parts_service.sync_parts_for_elevation(
-                            existing_elevation.id, base_url, token
+                            existing_elevation.id, base_url, token, skip_navigation=True
                         )
                         if success:
                             logger.info(f"Parts list synced for elevation {name}: {message}")
@@ -420,9 +420,9 @@ class ElevationSyncService:
                         try:
                             from services.parts_list_sync_service import PartsListSyncService
                             parts_service = PartsListSyncService(db)
-                            logger.info(f"Starting parts list sync for elevation: {name}")
+                            logger.info(f"Starting parts list sync for elevation: {name} (inline, skipping navigation)")
                             success, message = await parts_service.sync_parts_for_elevation(
-                                saved_elevation.id, base_url, token
+                                saved_elevation.id, base_url, token, skip_navigation=True
                             )
                             if success:
                                 logger.info(f"Parts list synced for elevation {name}: {message}")

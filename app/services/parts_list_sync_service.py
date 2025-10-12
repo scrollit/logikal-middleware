@@ -31,7 +31,7 @@ class PartsListSyncService:
         # All GUIDs are now stored with hyphens, so just return as-is
         return guid
         
-    async def sync_parts_for_elevation(self, elevation_id: int, base_url: str, token: str) -> Tuple[bool, str]:
+    async def sync_parts_for_elevation(self, elevation_id: int, base_url: str, token: str, skip_navigation: bool = False) -> Tuple[bool, str]:
         """
         Sync parts-list for a specific elevation.
         
@@ -39,6 +39,7 @@ class PartsListSyncService:
             elevation_id: Database ID of the elevation
             base_url: Logikal API base URL
             token: Authentication token
+            skip_navigation: If True, skip navigation (already in elevation context)
             
         Returns:
             Tuple of (success, message)
@@ -51,13 +52,17 @@ class PartsListSyncService:
             
             logger.info(f"Starting parts-list sync for elevation: {elevation.name} (ID: {elevation.logikal_id})")
             
-            # Navigate to elevation context
-            navigation_success = await self._navigate_to_elevation_context(
-                elevation, base_url, token
-            )
-            
-            if not navigation_success:
-                return False, f"Failed to navigate to elevation context for {elevation.name}"
+            # Navigate to elevation context only if not already there
+            if not skip_navigation:
+                logger.info(f"Navigating to elevation context for {elevation.name}")
+                navigation_success = await self._navigate_to_elevation_context(
+                    elevation, base_url, token
+                )
+                
+                if not navigation_success:
+                    return False, f"Failed to navigate to elevation context for {elevation.name}"
+            else:
+                logger.info(f"Skipping navigation - already in elevation context for {elevation.name}")
             
             # Fetch parts-list from API
             parts_data = await self._fetch_parts_list(base_url, token)
