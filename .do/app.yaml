@@ -14,14 +14,24 @@ services:
     value: production
   - key: DEBUG
     value: "false"
-  # NOTE: SECRET environment variables (SECRET_KEY, JWT_SECRET_KEY, REDIS_URL, 
-  # LOGIKAL_AUTH_USERNAME, LOGIKAL_AUTH_PASSWORD, ADMIN_USERNAME, ADMIN_PASSWORD)
-  # are managed via DigitalOcean Console and should NOT be specified here.
-  # They are configured as encrypted secrets in the DigitalOcean App Platform settings.
+  - key: SECRET_KEY
+    type: SECRET
+  - key: JWT_SECRET_KEY
+    type: SECRET
   - key: DATABASE_URL
     value: ${logikal-db.DATABASE_URL}
+  - key: REDIS_URL
+    type: SECRET
   - key: LOGIKAL_API_BASE_URL
     value: "http://128.199.57.77/MbioeService.svc/api/v3/"
+  - key: LOGIKAL_AUTH_USERNAME
+    type: SECRET
+  - key: LOGIKAL_AUTH_PASSWORD
+    type: SECRET
+  - key: ADMIN_USERNAME
+    type: SECRET
+  - key: ADMIN_PASSWORD
+    type: SECRET
   - key: ADMIN_SESSION_EXPIRE_HOURS
     value: "8"
   - key: LOG_LEVEL
