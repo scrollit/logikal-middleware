@@ -438,8 +438,29 @@ class ProjectSyncService:
                 
                 if is_stale:
                     logger.info(f"Project '{project_id}' is stale, performing full refresh from Logikal")
+                    
+                    # Get fresh project data from Logikal API
+                    project_service = ProjectService(self.db, token, base_url)
+                    success, message = await project_service.select_project(project_lookup.logikal_id)
+                    if not success:
+                        raise Exception(f"Failed to select stale project {project_id}: {message}")
+                    
+                    success, projects_data, message = await project_service.get_projects()
+                    if not success:
+                        raise Exception(f"Failed to get fresh project data for {project_id}: {message}")
+                    
+                    # Find the specific project in results
+                    project_data = None
+                    for proj in projects_data:
+                        if proj.get('id') == project_lookup.logikal_id:
+                            project_data = proj
+                            break
+                    
+                    if not project_data:
+                        raise Exception(f"Fresh project data not found for {project_id} after selection")
+                    
                     result = await self._sync_complete_project_from_logikal(
-                        project_lookup, directory, token, base_url, username, password
+                        project_data, directory, token, base_url, username, password
                     )
                     result['source'] = 'logikal_api'
                     result['staleness_check'] = {'is_stale': True}
