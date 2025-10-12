@@ -699,6 +699,8 @@ class ProjectSyncService:
             elevations_synced = 0
             images_synced = 0
             parts_list_parsed = 0
+            parts_lists_synced = 0
+            parts_lists_failed = 0
             
             # Sync phases for this project
             try:
@@ -725,6 +727,8 @@ class ProjectSyncService:
                         
                         if elevation_result.get('success'):
                             elevations_synced += elevation_result.get('count', 0)
+                            parts_lists_synced += elevation_result.get('parts_lists_synced', 0)
+                            parts_lists_failed += elevation_result.get('parts_lists_failed', 0)
                         else:
                             logger.warning(f"Failed to sync elevations for phase {phase.name}: {elevation_result.get('message', 'Unknown error')}")
                 else:
@@ -733,15 +737,14 @@ class ProjectSyncService:
             except Exception as e:
                 logger.warning(f"Failed to sync phases/elevations for project {project.name}: {str(e)}")
             
-            # TODO: Add image sync service when available
-            # images_result = await self._sync_images_for_project(project, token, base_url)
-            # images_synced = images_result.get('count', 0)
-            
-            # TODO: Add parts list sync service when available  
-            # parts_result = await self._sync_parts_list_for_project(project, token, base_url)
-            # parts_list_parsed = parts_result.get('count', 0)
+            # Parts lists are now synced inline during elevation sync
+            # Images are synced as thumbnails during elevation sync
             
             duration = time.time() - sync_start_time
+            
+            logger.info(f"Force sync complete for project {project_name}: "
+                       f"{phases_synced} phases, {elevations_synced} elevations, "
+                       f"{parts_lists_synced} parts lists synced, {parts_lists_failed} parts lists failed")
             
             return {
                 'success': True,
@@ -750,9 +753,8 @@ class ProjectSyncService:
                 'project_synced': True,
                 'phases_synced': phases_synced,
                 'elevations_synced': elevations_synced,
-                'images_synced': images_synced,
-                'parts_list_parsed': parts_list_parsed,
-                'odoo_synced': True,  # TODO: Implement actual Odoo sync
+                'parts_lists_synced': parts_lists_synced,
+                'parts_lists_failed': parts_lists_failed,
                 'duration_seconds': duration
             }
             

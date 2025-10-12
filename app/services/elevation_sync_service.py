@@ -242,10 +242,20 @@ class ElevationSyncService:
             
             # Process and cache elevations
             elevations_processed = 0
+            parts_lists_synced = 0
+            parts_lists_failed = 0
+            
             for elevation_data in elevations_data:
                 try:
-                    await self._create_or_update_elevation(db, elevation_data, phase.id, base_url, token)
+                    elevation = await self._create_or_update_elevation(db, elevation_data, phase.id, base_url, token)
                     elevations_processed += 1
+                    
+                    # Track parts list sync status
+                    if elevation and elevation.has_parts_data:
+                        parts_lists_synced += 1
+                    elif elevation and base_url and token:
+                        # Parts list sync was attempted but failed
+                        parts_lists_failed += 1
                 except Exception as e:
                     logger.error(f"Failed to process elevation {elevation_data.get('name', 'Unknown')}: {str(e)}")
             
@@ -263,11 +273,14 @@ class ElevationSyncService:
             
             logger.info(f"Elevation sync completed for phase {phase.name} in {duration} seconds")
             logger.info(f"Processed {elevations_processed} elevations")
+            logger.info(f"Parts lists synced: {parts_lists_synced}, failed: {parts_lists_failed}")
             
             return {
                 'success': True,
                 'message': f'Elevation sync completed for phase: {phase.name}',
                 'count': elevations_processed,
+                'parts_lists_synced': parts_lists_synced,
+                'parts_lists_failed': parts_lists_failed,
                 'duration_seconds': duration
             }
             
@@ -339,6 +352,23 @@ class ElevationSyncService:
                 
                 db.commit()
                 
+                # Sync parts list if base_url and token provided
+                if base_url and token:
+                    try:
+                        from services.parts_list_sync_service import PartsListSyncService
+                        parts_service = PartsListSyncService(db)
+                        logger.info(f"Starting parts list sync for existing elevation: {name}")
+                        success, message = await parts_service.sync_parts_for_elevation(
+                            existing_elevation.id, base_url, token
+                        )
+                        if success:
+                            logger.info(f"Parts list synced for elevation {name}: {message}")
+                        else:
+                            logger.warning(f"Parts list sync failed for elevation {name}: {message}")
+                    except Exception as e:
+                        logger.error(f"Error syncing parts list for elevation {name}: {str(e)}")
+                        # Don't fail the entire elevation sync if parts list fails
+                
                 logger.debug(f"Updated existing elevation: {name} (ID: {identifier})")
                 return existing_elevation
             else:
@@ -384,6 +414,23 @@ class ElevationSyncService:
                 saved_elevation = db.query(Elevation).filter(Elevation.logikal_id == identifier).first()
                 if saved_elevation:
                     logger.info(f"Successfully created new elevation: {name} (ID: {identifier}) - Verified in database")
+                    
+                    # Sync parts list if base_url and token provided
+                    if base_url and token:
+                        try:
+                            from services.parts_list_sync_service import PartsListSyncService
+                            parts_service = PartsListSyncService(db)
+                            logger.info(f"Starting parts list sync for elevation: {name}")
+                            success, message = await parts_service.sync_parts_for_elevation(
+                                saved_elevation.id, base_url, token
+                            )
+                            if success:
+                                logger.info(f"Parts list synced for elevation {name}: {message}")
+                            else:
+                                logger.warning(f"Parts list sync failed for elevation {name}: {message}")
+                        except Exception as e:
+                            logger.error(f"Error syncing parts list for elevation {name}: {str(e)}")
+                            # Don't fail the entire elevation sync if parts list fails
                 else:
                     logger.error(f"Elevation creation failed - elevation not found in database after commit: {name} (ID: {identifier})")
                 
