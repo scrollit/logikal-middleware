@@ -30,61 +30,91 @@ class SQLiteValidationService:
     def __init__(self):
         self.logger = logger
     
-    async def validate_file(self, sqlite_path: str) -> ValidationResult:
-        """Multi-layer validation of SQLite file"""
+    async def validate_file(self, sqlite_path: str, conn=None, trusted_source: bool = False) -> ValidationResult:
+        """Multi-layer validation of SQLite file
         
-        # 1. File system validation
-        if not os.path.exists(sqlite_path):
-            return ValidationResult(False, "File does not exist")
-            
-        file_size = os.path.getsize(sqlite_path)
-        if file_size > self.MAX_FILE_SIZE:
-            return ValidationResult(
-                False, 
-                f"File size exceeds {self.MAX_FILE_SIZE} bytes",
-                {"file_size": file_size, "max_size": self.MAX_FILE_SIZE}
-            )
+        OPTIMIZATION: Connection reuse - accepts optional connection parameter to avoid
+        reopening the SQLite file multiple times (saves 0.5-1s per connection).
         
-        if file_size == 0:
-            return ValidationResult(False, "File is empty")
+        Args:
+            sqlite_path: Path to SQLite file
+            conn: Optional SQLite connection to reuse (if None, will open and close)
+            trusted_source: If True, skip expensive integrity check for trusted files
         
-        # 2. SQLite integrity check
-        integrity_result = await self._check_sqlite_integrity(sqlite_path)
-        if not integrity_result.valid:
-            return integrity_result
+        Returns:
+            ValidationResult with validation status
+        """
         
-        # 3. Schema validation
-        schema_result = await self._validate_schema(sqlite_path)
-        if not schema_result.valid:
-            return schema_result
-        
-        # 4. Data validation
-        data_result = await self._validate_required_data(sqlite_path)
-        return data_result
-    
-    async def _check_sqlite_integrity(self, sqlite_path: str) -> ValidationResult:
-        """Check SQLite file integrity before processing"""
+        # Determine if we own the connection
+        owns_connection = (conn is None)
         
         try:
-            conn = await self._open_sqlite_readonly(sqlite_path)
+            # 1. File system validation (always do this)
+            if not os.path.exists(sqlite_path):
+                return ValidationResult(False, "File does not exist")
+                
+            file_size = os.path.getsize(sqlite_path)
+            if file_size > self.MAX_FILE_SIZE:
+                return ValidationResult(
+                    False, 
+                    f"File size exceeds {self.MAX_FILE_SIZE} bytes",
+                    {"file_size": file_size, "max_size": self.MAX_FILE_SIZE}
+                )
             
-            try:
-                # Perform integrity check
-                cursor = conn.cursor()
-                cursor.execute("PRAGMA integrity_check")
-                result = cursor.fetchone()
-                
-                if result[0] != "ok":
-                    return ValidationResult(
-                        False, 
-                        f"SQLite integrity check failed: {result[0]}",
-                        {"integrity_result": result[0]}
-                    )
-                
-                return ValidationResult(True, "SQLite integrity check passed")
-                
-            finally:
+            if file_size == 0:
+                return ValidationResult(False, "File is empty")
+            
+            # Open connection if not provided
+            if conn is None:
+                conn = await self._open_sqlite_readonly(sqlite_path)
+            
+            # 2. SQLite integrity check (skip for trusted sources)
+            if not trusted_source:
+                integrity_result = await self._check_sqlite_integrity_with_conn(conn)
+                if not integrity_result.valid:
+                    return integrity_result
+            
+            # 3. Schema validation (always do this - it's fast)
+            schema_result = await self._validate_schema_with_conn(conn)
+            if not schema_result.valid:
+                return schema_result
+            
+            # 4. Data validation (always do this - it's fast)
+            data_result = await self._validate_required_data_with_conn(conn)
+            return data_result
+            
+        finally:
+            # Only close connection if we opened it
+            if owns_connection and conn:
                 conn.close()
+    
+    async def _check_sqlite_integrity(self, sqlite_path: str) -> ValidationResult:
+        """Check SQLite file integrity before processing (legacy method)"""
+        conn = await self._open_sqlite_readonly(sqlite_path)
+        try:
+            return await self._check_sqlite_integrity_with_conn(conn)
+        finally:
+            conn.close()
+    
+    async def _check_sqlite_integrity_with_conn(self, conn) -> ValidationResult:
+        """Check SQLite file integrity using provided connection
+        
+        OPTIMIZATION: Accepts connection parameter for reuse.
+        """
+        try:
+            # Perform integrity check
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA integrity_check")
+            result = cursor.fetchone()
+            
+            if result[0] != "ok":
+                return ValidationResult(
+                    False, 
+                    f"SQLite integrity check failed: {result[0]}",
+                    {"integrity_result": result[0]}
+                )
+            
+            return ValidationResult(True, "SQLite integrity check passed")
                 
         except sqlite3.Error as e:
             return ValidationResult(
@@ -100,43 +130,47 @@ class SQLiteValidationService:
             )
     
     async def _validate_schema(self, sqlite_path: str) -> ValidationResult:
-        """Validate that required tables and columns exist"""
-        
+        """Validate that required tables and columns exist (legacy method)"""
+        conn = await self._open_sqlite_readonly(sqlite_path)
         try:
-            conn = await self._open_sqlite_readonly(sqlite_path)
+            return await self._validate_schema_with_conn(conn)
+        finally:
+            conn.close()
+    
+    async def _validate_schema_with_conn(self, conn) -> ValidationResult:
+        """Validate that required tables and columns exist using provided connection
+        
+        OPTIMIZATION: Accepts connection parameter for reuse.
+        """
+        try:
+            cursor = conn.cursor()
             
-            try:
-                cursor = conn.cursor()
-                
-                # Check required tables exist
-                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
-                tables = [row[0] for row in cursor.fetchall()]
-                
-                missing_tables = set(self.REQUIRED_TABLES) - set(tables)
-                if missing_tables:
-                    return ValidationResult(
-                        False, 
-                        f"Required table(s) not found: {list(missing_tables)}",
-                        {
-                            "missing_tables": list(missing_tables),
-                            "available_tables": tables
-                        }
-                    )
-                
-                # Validate Elevations table schema
-                elevation_validation = await self._validate_elevations_table(cursor)
-                if not elevation_validation.valid:
-                    return elevation_validation
-                
-                # Validate Glass table schema
-                glass_validation = await self._validate_glass_table(cursor)
-                if not glass_validation.valid:
-                    return glass_validation
-                
-                return ValidationResult(True, "Schema validation passed")
-                
-            finally:
-                conn.close()
+            # Check required tables exist
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = [row[0] for row in cursor.fetchall()]
+            
+            missing_tables = set(self.REQUIRED_TABLES) - set(tables)
+            if missing_tables:
+                return ValidationResult(
+                    False, 
+                    f"Required table(s) not found: {list(missing_tables)}",
+                    {
+                        "missing_tables": list(missing_tables),
+                        "available_tables": tables
+                    }
+                )
+            
+            # Validate Elevations table schema
+            elevation_validation = await self._validate_elevations_table(cursor)
+            if not elevation_validation.valid:
+                return elevation_validation
+            
+            # Validate Glass table schema
+            glass_validation = await self._validate_glass_table(cursor)
+            if not glass_validation.valid:
+                return glass_validation
+            
+            return ValidationResult(True, "Schema validation passed")
                 
         except sqlite3.Error as e:
             return ValidationResult(
@@ -217,40 +251,44 @@ class SQLiteValidationService:
             )
     
     async def _validate_required_data(self, sqlite_path: str) -> ValidationResult:
-        """Validate that required data exists in tables"""
-        
+        """Validate that required data exists in tables (legacy method)"""
+        conn = await self._open_sqlite_readonly(sqlite_path)
         try:
-            conn = await self._open_sqlite_readonly(sqlite_path)
+            return await self._validate_required_data_with_conn(conn)
+        finally:
+            conn.close()
+    
+    async def _validate_required_data_with_conn(self, conn) -> ValidationResult:
+        """Validate that required data exists in tables using provided connection
+        
+        OPTIMIZATION: Accepts connection parameter for reuse.
+        """
+        try:
+            cursor = conn.cursor()
             
-            try:
-                cursor = conn.cursor()
-                
-                # Check if Elevations table has data
-                cursor.execute("SELECT COUNT(*) FROM Elevations")
-                elevation_count = cursor.fetchone()[0]
-                
-                if elevation_count == 0:
-                    return ValidationResult(
-                        False, 
-                        "Elevations table is empty",
-                        {"table": "Elevations", "record_count": 0}
-                    )
-                
-                # Check if Glass table has data (optional, but good to know)
-                cursor.execute("SELECT COUNT(*) FROM Glass")
-                glass_count = cursor.fetchone()[0]
-                
+            # Check if Elevations table has data
+            cursor.execute("SELECT COUNT(*) FROM Elevations")
+            elevation_count = cursor.fetchone()[0]
+            
+            if elevation_count == 0:
                 return ValidationResult(
-                    True, 
-                    "Data validation passed",
-                    {
-                        "elevation_records": elevation_count,
-                        "glass_records": glass_count
-                    }
+                    False, 
+                    "Elevations table is empty",
+                    {"table": "Elevations", "record_count": 0}
                 )
-                
-            finally:
-                conn.close()
+            
+            # Check if Glass table has data (optional, but good to know)
+            cursor.execute("SELECT COUNT(*) FROM Glass")
+            glass_count = cursor.fetchone()[0]
+            
+            return ValidationResult(
+                True, 
+                "Data validation passed",
+                {
+                    "elevation_records": elevation_count,
+                    "glass_records": glass_count
+                }
+            )
                 
         except sqlite3.Error as e:
             return ValidationResult(

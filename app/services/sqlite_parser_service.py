@@ -49,6 +49,9 @@ class SQLiteElevationParserService:
         if not elevation:
             return {"success": False, "error": "Elevation not found"}
         
+        # ✨ OPTIMIZATION 2: Open SQLite connection once and reuse
+        sqlite_conn = None
+        
         try:
             # Update status to in_progress (NO COMMIT - part of transaction)
             elevation.parse_status = ParsingStatus.IN_PROGRESS
@@ -58,7 +61,15 @@ class SQLiteElevationParserService:
             if not elevation.parts_db_path or not os.path.exists(elevation.parts_db_path):
                 raise ParsingError("SQLite file not found", "file_not_found")
             
-            validation_result = await self.validation_service.validate_file(elevation.parts_db_path)
+            # ✨ OPEN CONNECTION ONCE - will be reused for all SQLite operations
+            sqlite_conn = await self.validation_service._open_sqlite_readonly(elevation.parts_db_path)
+            
+            # ✨ PASS CONNECTION to validation (Optimization 2 + 3)
+            validation_result = await self.validation_service.validate_file(
+                elevation.parts_db_path,
+                conn=sqlite_conn,
+                trusted_source=True  # Files from Logikal API are trusted (Optimization 3)
+            )
             
             if not validation_result.valid:
                 # Rollback IN_PROGRESS status before returning
@@ -81,8 +92,9 @@ class SQLiteElevationParserService:
                 return {"success": False, "error": validation_result.message}
             
             # Extract data with error handling (NO COMMITS - part of transaction)
-            elevation_data = await self._extract_elevation_data_safe(elevation.parts_db_path)
-            glass_data = await self._extract_glass_data_safe(elevation.parts_db_path)
+            # ✨ PASS CONNECTION to extraction methods (reuse connection)
+            elevation_data = await self._extract_elevation_data_with_conn(sqlite_conn, elevation)
+            glass_data = await self._extract_glass_data_with_conn(sqlite_conn)
             
             # Update database (NO COMMITS - part of transaction)
             await self._update_elevation_model_no_commit(elevation_id, elevation_data)
@@ -128,18 +140,32 @@ class SQLiteElevationParserService:
             )
             
             return {"success": False, "error": error_msg}
+        
+        finally:
+            # ✨ CLOSE CONNECTION ONCE at the end
+            if sqlite_conn:
+                sqlite_conn.close()
     
     async def _extract_elevation_data_safe(self, sqlite_path: str) -> Dict:
-        """Extract data from Elevations table with error handling"""
-        
+        """Extract data from Elevations table with error handling (legacy method)"""
+        conn = await self.validation_service._open_sqlite_readonly(sqlite_path)
         try:
-            conn = await self.validation_service._open_sqlite_readonly(sqlite_path)
+            # Need elevation object for name matching, but don't have it here
+            # This legacy method should not be used anymore
+            return await self._extract_elevation_data_with_conn(conn, None)
+        finally:
+            conn.close()
+    
+    async def _extract_elevation_data_with_conn(self, conn, elevation) -> Dict:
+        """Extract data from Elevations table using provided connection
+        
+        OPTIMIZATION: Accepts connection parameter for reuse.
+        """
+        try:
+            cursor = conn.cursor()
             
-            try:
-                cursor = conn.cursor()
-                
-                # Extract from Elevations table with parameterized query
-                # CRITICAL FIX: Use elevation name to find the correct record instead of LIMIT 1
+            # Extract from Elevations table with parameterized query
+            if elevation and elevation.name:
                 cursor.execute("""
                     SELECT 
                         AutoDescription,
@@ -160,58 +186,76 @@ class SQLiteElevationParserService:
                     WHERE Name = ? OR Name LIKE ?
                     LIMIT 1
                 """, (elevation.name, f"%{elevation.name}%"))
-                
+            else:
+                cursor.execute("""
+                    SELECT 
+                        AutoDescription,
+                        AutoDescriptionShort,
+                        Width_Output,
+                        Width_Unit,
+                        Height_Output,
+                        Height_Unit,
+                        Weight_Output,
+                        Weight_Unit,
+                        Area_Output,
+                        Area_Unit,
+                        SystemCode,
+                        SystemName,
+                        SystemLongName,
+                        ColorBase_Long
+                    FROM Elevations 
+                    LIMIT 1
+                """)
+            
+            result = cursor.fetchone()
+            
+            if not result:
+                # Fallback: If no exact match, try to get any record as fallback
+                if elevation and elevation.name:
+                    logger.warning(f"No exact match found for elevation '{elevation.name}', trying fallback")
+                cursor.execute("""
+                    SELECT 
+                        AutoDescription,
+                        AutoDescriptionShort,
+                        Width_Output,
+                        Width_Unit,
+                        Height_Output,
+                        Height_Unit,
+                        Weight_Output,
+                        Weight_Unit,
+                        Area_Output,
+                        Area_Unit,
+                        SystemCode,
+                        SystemName,
+                        SystemLongName,
+                        ColorBase_Long
+                    FROM Elevations 
+                    LIMIT 1
+                """)
                 result = cursor.fetchone()
                 
                 if not result:
-                    # Fallback: If no exact match, try to get any record as fallback
-                    logger.warning(f"No exact match found for elevation '{elevation.name}', trying fallback")
-                    cursor.execute("""
-                        SELECT 
-                            AutoDescription,
-                            AutoDescriptionShort,
-                            Width_Output,
-                            Width_Unit,
-                            Height_Output,
-                            Height_Unit,
-                            Weight_Output,
-                            Weight_Unit,
-                            Area_Output,
-                            Area_Unit,
-                            SystemCode,
-                            SystemName,
-                            SystemLongName,
-                            ColorBase_Long
-                        FROM Elevations 
-                        LIMIT 1
-                    """)
-                    result = cursor.fetchone()
-                    
-                    if not result:
-                        raise ParsingError("No data found in Elevations table")
-                
-                # Map result to dictionary
-                elevation_data = {
-                    "auto_description": result[0],
-                    "auto_description_short": result[1],
-                    "width_out": result[2],
-                    "width_unit": result[3],
-                    "height_out": result[4],
-                    "height_unit": result[5],
-                    "weight_out": result[6],
-                    "weight_unit": result[7],
-                    "area_output": result[8],
-                    "area_unit": result[9],
-                    "system_code": result[10],
-                    "system_name": result[11],
-                    "system_long_name": result[12],
-                    "color_base_long": result[13]
-                }
-                
-                return elevation_data
-                
-            finally:
-                conn.close()
+                    raise ParsingError("No data found in Elevations table")
+            
+            # Map result to dictionary
+            elevation_data = {
+                "auto_description": result[0],
+                "auto_description_short": result[1],
+                "width_out": result[2],
+                "width_unit": result[3],
+                "height_out": result[4],
+                "height_unit": result[5],
+                "weight_out": result[6],
+                "weight_unit": result[7],
+                "area_output": result[8],
+                "area_unit": result[9],
+                "system_code": result[10],
+                "system_name": result[11],
+                "system_long_name": result[12],
+                "color_base_long": result[13]
+            }
+            
+            return elevation_data
                 
         except sqlite3.Error as e:
             raise ParsingError(f"SQLite error extracting elevation data: {str(e)}")
@@ -219,37 +263,41 @@ class SQLiteElevationParserService:
             raise ParsingError(f"Error extracting elevation data: {str(e)}")
     
     async def _extract_glass_data_safe(self, sqlite_path: str) -> List[Dict]:
-        """Extract data from Glass table with error handling"""
-        
+        """Extract data from Glass table with error handling (legacy method)"""
+        conn = await self.validation_service._open_sqlite_readonly(sqlite_path)
         try:
-            conn = await self.validation_service._open_sqlite_readonly(sqlite_path)
+            return await self._extract_glass_data_with_conn(conn)
+        finally:
+            conn.close()
+    
+    async def _extract_glass_data_with_conn(self, conn) -> List[Dict]:
+        """Extract data from Glass table using provided connection
+        
+        OPTIMIZATION: Accepts connection parameter for reuse.
+        """
+        try:
+            cursor = conn.cursor()
             
-            try:
-                cursor = conn.cursor()
-                
-                # Extract from Glass table
-                cursor.execute("""
-                    SELECT 
-                        GlassID,
-                        Name
-                    FROM Glass
-                    WHERE GlassID IS NOT NULL
-                """)
-                
-                results = cursor.fetchall()
-                
-                glass_data = []
-                for result in results:
-                    glass_item = {
-                        "GlassID": result[0],
-                        "Name": result[1]
-                    }
-                    glass_data.append(glass_item)
-                
-                return glass_data
-                
-            finally:
-                conn.close()
+            # Extract from Glass table
+            cursor.execute("""
+                SELECT 
+                    GlassID,
+                    Name
+                FROM Glass
+                WHERE GlassID IS NOT NULL
+            """)
+            
+            results = cursor.fetchall()
+            
+            glass_data = []
+            for result in results:
+                glass_item = {
+                    "GlassID": result[0],
+                    "Name": result[1]
+                }
+                glass_data.append(glass_item)
+            
+            return glass_data
                 
         except sqlite3.Error as e:
             raise ParsingError(f"SQLite error extracting glass data: {str(e)}")
