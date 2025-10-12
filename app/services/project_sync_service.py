@@ -429,39 +429,53 @@ class ProjectSyncService:
                     Project.name == project_id
                 ).first()
             
-            # STEP 2A: Project found in middleware - check staleness
+            # STEP 2A: Project found in middleware - Force Sync always performs full refresh
             if project_lookup:
-                logger.info(f"Found project '{project_id}' in middleware database")
+                logger.info(f"Found project '{project_id}' in middleware database - Force Sync will perform full refresh from Logikal")
                 
-                # Check if project is stale (now that we're in directory context)
-                is_stale = await self._check_project_staleness(project_lookup, token, base_url)
+                # Force Sync always performs full refresh regardless of staleness
+                # Get fresh project data from Logikal API
+                project_service = ProjectService(self.db, token, base_url)
+                success, projects_data, message = await project_service.get_projects()
                 
-                if is_stale:
-                    logger.info(f"Project '{project_id}' is stale, performing full refresh from Logikal")
-                    
-                    # Use existing project data from middleware instead of making problematic API calls
-                    # This avoids 404 errors and context switching issues
+                if not success:
+                    logger.warning(f"Failed to get fresh project data from Logikal: {message}")
+                    # Fallback to existing data if API fails
                     project_data = {
                         'id': project_lookup.logikal_id,
                         'name': project_lookup.name,
                         'description': project_lookup.description or '',
                         'last_modified_date': project_lookup.last_sync_date.isoformat() if project_lookup.last_sync_date else None
                     }
-                    
-                    logger.info(f"Using existing project data for full refresh: {project_lookup.name}")
-                    
-                    result = await self._sync_complete_project_from_logikal(
-                        project_data, directory, token, base_url, username, password
-                    )
-                    result['source'] = 'middleware_data_refresh'
-                    result['staleness_check'] = {'is_stale': True}
-                    return result
+                    logger.info(f"Using existing project data as fallback: {project_lookup.name}")
                 else:
-                    logger.info(f"Project '{project_id}' is up-to-date, syncing to Odoo only")
-                    result = await self._sync_existing_project_to_odoo(project_lookup)
-                    result['source'] = 'middleware_cache'
-                    result['staleness_check'] = {'is_stale': False}
-                    return result
+                    # Find the specific project in the fresh data
+                    matching_project = None
+                    for project_data in projects_data:
+                        if project_data.get('name') == project_id:
+                            matching_project = project_data
+                            break
+                    
+                    if matching_project:
+                        project_data = matching_project
+                        logger.info(f"Retrieved fresh project data from Logikal: {project_lookup.name}")
+                    else:
+                        # Fallback to existing data if project not found in fresh data
+                        project_data = {
+                            'id': project_lookup.logikal_id,
+                            'name': project_lookup.name,
+                            'description': project_lookup.description or '',
+                            'last_modified_date': project_lookup.last_sync_date.isoformat() if project_lookup.last_sync_date else None
+                        }
+                        logger.info(f"Project not found in fresh data, using existing data: {project_lookup.name}")
+                
+                # Always perform full sync for Force Sync
+                result = await self._sync_complete_project_from_logikal(
+                    project_data, directory, token, base_url, username, password
+                )
+                result['source'] = 'force_sync_full_refresh'
+                result['force_sync'] = True
+                return result
             
             # STEP 2B: Project NOT found in middleware - search Logikal
             else:
