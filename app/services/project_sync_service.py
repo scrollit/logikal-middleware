@@ -445,7 +445,7 @@ class ProjectSyncService:
                         'id': project_lookup.logikal_id,
                         'name': project_lookup.name,
                         'description': project_lookup.description or '',
-                        'last_modified_date': project_lookup.synced_at.isoformat() if project_lookup.synced_at else None
+                        'last_modified_date': project_lookup.last_sync_date.isoformat() if project_lookup.last_sync_date else None
                     }
                     
                     logger.info(f"Using existing project data for full refresh: {project_lookup.name}")
@@ -509,13 +509,13 @@ class ProjectSyncService:
             # Use time-based staleness check instead of API comparison
             from datetime import timezone, timedelta
             
-            if not project.synced_at:
+            if not project.last_sync_date:
                 logger.info(f"Project {project.name} has no sync date, assuming stale")
                 return True
             
             # Check if project was synced more than 1 hour ago
             one_hour_ago = datetime.utcnow().replace(tzinfo=timezone.utc) - timedelta(hours=1)
-            middleware_date = project.synced_at.replace(tzinfo=timezone.utc)
+            middleware_date = project.last_sync_date.replace(tzinfo=timezone.utc)
             
             is_stale = middleware_date < one_hour_ago
             
@@ -668,8 +668,7 @@ class ProjectSyncService:
                     name=project_name,
                     description=project_data.get('description', ''),
                     directory_id=directory.id if directory else None,
-                    sync_status='synced',
-                    synced_at=datetime.utcnow()
+                    last_sync_date=datetime.utcnow()
                 )
                 self.db.add(project)
                 self.db.commit()
@@ -677,8 +676,7 @@ class ProjectSyncService:
             else:
                 project.name = project_name
                 project.description = project_data.get('description', project.description)
-                project.sync_status = 'synced'
-                project.synced_at = datetime.utcnow()
+                project.last_sync_date = datetime.utcnow()
                 self.db.commit()
                 logger.info(f"Updated existing project: {project.name} (GUID: {project_id})")
             
